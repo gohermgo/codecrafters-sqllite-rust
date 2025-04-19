@@ -193,6 +193,7 @@ pub fn read_cells<'p>(
     }: &'p BTreePage,
 ) -> impl Iterator<Item = BTreeCell> + 'p {
     cells.iter().filter_map(|BTreeCellPointer(offset)| {
+        eprintln!("Reading cell from content with length {}", content.len());
         read_cell(&mut &content[*offset as usize..], *r#type).ok()
     })
 }
