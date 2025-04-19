@@ -238,7 +238,7 @@ fn read_one<R: io::Read>(r: &mut R) -> io::Result<u8> {
 fn high_bit_is_set(val: &u8) -> bool {
     val & 0b1000_0000 != 0
 }
-fn read_varint_v2<R: io::Read>(r: &mut R) -> io::Result<Varint> {
+fn read_varint<R: io::Read>(r: &mut R) -> io::Result<Varint> {
     let a0 = read_one(r)?;
 
     let mut prev = a0;
@@ -258,23 +258,11 @@ fn read_varint_v2<R: io::Read>(r: &mut R) -> io::Result<Varint> {
 
     Ok(Varint { a0, tail })
 }
-fn read_varint<R: io::Read>(r: &mut R) -> io::Result<Varint> {
-    let a0 = read_exact::<R, 1>(r)?[0];
-    let tail = match a0 {
-        0..=240 => vec![],
-        241..=248 => read_exact::<R, 1>(r)?.to_vec(),
-        249 => read_exact::<R, 2>(r)?.to_vec(),
-        _ => todo!(),
-    };
-    eprintln!("Varint read, a0={a0}, tail length={}", tail.len());
-    Ok(Varint { a0, tail })
-}
 fn calculate_varint(Varint { a0, tail }: &Varint) -> u64 {
-    match tail.len() {
-        0 => *a0 as u64,
-        1 => 240_u64 + 256_u64 * (*a0 as u64 - 241_u64) + tail[0] as u64,
-        2 => 2288_u64 + 256_u64 * tail[0] as u64 + tail[1] as u64,
-        _ => todo!(),
+    if tail.is_empty() {
+        (*a0 & 0b0111_1111) as u64
+    } else {
+        todo!()
     }
 }
 #[derive(Debug)]
@@ -293,14 +281,18 @@ pub struct BTreeLeafTableCell {
     pub first_overflow_page_number: Option<u32>,
 }
 fn read_leaf_table_cell<R: io::Read>(r: &mut R) -> io::Result<BTreeLeafTableCell> {
-    let total_payload_bytes = read_varint_v2(r)?;
+    let total_payload_bytes = read_varint(r)?;
     let calculated_total_payload_bytes = calculate_varint(&total_payload_bytes);
     eprintln!("total payload bytes calculated as {calculated_total_payload_bytes}");
-    let rowid = read_varint_v2(r)?;
+    let rowid = read_varint(r)?;
+
+    let mut initial_payload = vec![0; calculated_total_payload_bytes as usize];
+    io::Read::read_exact(r, &mut initial_payload)?;
+
     Ok(BTreeLeafTableCell {
         total_payload_bytes,
         rowid,
-        initial_payload: vec![],
+        initial_payload,
         first_overflow_page_number: None,
     })
 }
