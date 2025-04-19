@@ -60,8 +60,8 @@ fn tables_command(database_path: impl AsRef<Path>) -> io::Result<()> {
                 btree::BTreeCell::LeafTable(btree::BTreeLeafTableCell {
                     initial_payload, ..
                 }) => {
-                    let rec = btree::read_record(&mut initial_payload.as_slice());
-                    eprintln!("Record {rec:?}");
+                    let _rec = btree::read_record(&mut initial_payload.as_slice())
+                        .expect("Failed to read record");
                 }
             }
         }

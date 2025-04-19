@@ -376,6 +376,7 @@ pub fn read_record<R: io::Read>(r: &mut R) -> io::Result<Record> {
     // }
     let mut tail = vec![];
     io::Read::read_to_end(r, &mut tail)?;
+    eprintln!("TABLE NAME: {}", String::from_utf8_lossy(&elt.0));
 
     Ok(Record { header, elt, tail })
 }
