@@ -28,6 +28,7 @@ fn main() -> Result<()> {
     } = args();
     match command.as_str() {
         ".dbinfo" => db_info_command(database_path)?,
+        ".tables" => tables_command(database_path)?,
         _ => bail!("Missing or invalid command passed: {}", command),
     }
 
