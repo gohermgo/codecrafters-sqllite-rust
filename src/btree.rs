@@ -307,29 +307,31 @@ pub struct TableBTreeInteriorCell {
 #[derive(Debug)]
 pub struct RecordHeader {
     pub size: Varint,
-    pub serial_type: Varint,
-    pub tail: Vec<u8>,
+    pub serial_types: Vec<Varint>,
+    // pub serial_type: Varint,
+    // pub tail: Vec<u8>,
 }
 fn read_record_header<R: io::Read>(r: &mut R) -> io::Result<RecordHeader> {
     let size = read_varint(r)?;
-    let serial_type = read_varint(r)?;
-
-    let tail_size =
-        calculate_varint(&size) as usize - (size_of_varint(&size) + size_of_varint(&serial_type));
-
+    let tail_size = calculate_varint(&size) as usize - size_of_varint(&size);
     let mut tail = vec![0; tail_size];
     io::Read::read_exact(r, &mut tail)?;
+    let mut src = tail.as_slice();
+    let serial_types = core::iter::from_fn(|| read_varint(&mut src).ok()).collect();
+    // let serial_type = read_varint(r)?;
 
-    Ok(RecordHeader {
-        size,
-        serial_type,
-        tail,
-    })
+    // let tail_size =
+    //     calculate_varint(&size) as usize - (size_of_varint(&size) + size_of_varint(&serial_type));
+
+    // let mut tail = vec![0; tail_size];
+    // io::Read::read_exact(r, &mut tail)?;
+
+    Ok(RecordHeader { size, serial_types })
 }
 #[derive(Debug)]
 pub struct RecordElement(pub Vec<u8>);
-fn read_record_element<R: io::Read>(r: &mut R, header: &RecordHeader) -> io::Result<RecordElement> {
-    let body = match calculate_varint(&header.serial_type) {
+fn read_record_element<R: io::Read>(r: &mut R, serial_type: &Varint) -> io::Result<RecordElement> {
+    let body = match calculate_varint(serial_type) {
         // Value is a string
         val if val >= 13 && val % 2 != 0 => {
             let size = (val as usize - 13) / 2;
@@ -345,21 +347,23 @@ fn read_record_element<R: io::Read>(r: &mut R, header: &RecordHeader) -> io::Res
 #[derive(Debug)]
 pub struct Record {
     pub header: RecordHeader,
-    pub elt: RecordElement,
+    // pub elt: RecordElement,
     pub tail: Vec<u8>,
 }
 pub fn read_record<R: io::Read>(r: &mut R) -> io::Result<Record> {
     let header = read_record_header(r)?;
     eprintln!("RECORD SIZE: {:?}", calculate_varint(&header.size));
-    eprintln!("RECORD TYPE: {:?}", calculate_varint(&header.serial_type));
-
-    let elt = read_record_element(r, &header)?;
+    for (idx, t) in header.serial_types.iter().enumerate() {
+        eprintln!("RECORD TYPE: {idx} -> {}", calculate_varint(t));
+        let elt = read_record_element(r, t)?;
+        eprintln!("TABLE NAME: {}", String::from_utf8_lossy(&elt.0));
+    }
+    // eprintln!("RECORD TYPE: {:?}", calculate_varint(&header.serial_type));
 
     let mut tail = vec![];
     io::Read::read_to_end(r, &mut tail)?;
 
-    eprintln!("TABLE NAME: {}", String::from_utf8_lossy(&elt.0));
     eprintln!("TABLE DATA: {}", String::from_utf8_lossy(&tail));
 
-    Ok(Record { header, elt, tail })
+    Ok(Record { header, tail })
 }
