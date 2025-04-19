@@ -114,19 +114,28 @@ fn read_page_header<R: io::Read>(r: &mut R) -> io::Result<BTreePageHeader> {
         right_most_pointer,
     })
 }
+fn size_of_page_header(
+    BTreePageHeader {
+        inner,
+        right_most_pointer,
+    }: &BTreePageHeader,
+) -> usize {
+    core::mem::size_of_val(inner)
+        + right_most_pointer
+            .is_some()
+            .then_some(core::mem::size_of::<u32>())
+            .unwrap_or_default()
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(transparent)]
 pub struct BTreeCellPointer(pub u16);
-#[derive(Debug)]
-pub struct BTreePage {
-    pub header: BTreePageHeader,
-    pub cell_pointers: Vec<BTreeCellPointer>,
-}
-pub fn read_page<R: io::Read>(r: &mut R) -> io::Result<BTreePage> {
-    let header = read_page_header(r)?;
-    eprintln!("Read page with header {header:?}");
-    let mut cell_pointers =
-        vec![0; header.inner.cell_count as usize * core::mem::size_of::<BTreeCellPointer>()];
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct BTreeCellPointerArray(Vec<BTreeCellPointer>);
+fn read_cell_pointer_array<R: io::Read>(
+    r: &mut R,
+    cell_count: usize,
+) -> io::Result<BTreeCellPointerArray> {
+    let mut cell_pointers = vec![0; cell_count * core::mem::size_of::<BTreeCellPointer>()];
     io::Read::read_exact(r, &mut cell_pointers)?;
     let cell_pointers = cell_pointers
         .chunks_exact(2)
@@ -139,12 +148,95 @@ pub fn read_page<R: io::Read>(r: &mut R) -> io::Result<BTreePage> {
         })
         .map(BTreeCellPointer)
         .collect();
+    Ok(BTreeCellPointerArray(cell_pointers))
+}
+fn size_of_cell_pointer_array(BTreeCellPointerArray(xs): &BTreeCellPointerArray) -> usize {
+    xs.len() * core::mem::size_of::<BTreeCellPointer>()
+}
+#[derive(Debug)]
+pub struct BTreePage {
+    pub header: BTreePageHeader,
+    pub cell_pointers: BTreeCellPointerArray,
+}
+pub fn read_page<R: io::Read>(r: &mut R) -> io::Result<BTreePage> {
+    let header = read_page_header(r)?;
+    eprintln!("Read page with header {header:?}");
+    eprintln!("Header size is {}", size_of_page_header(&header));
+    let cell_pointers = read_cell_pointer_array(r, header.inner.cell_count as usize)?;
+    eprintln!(
+        "Size of cell-pointer array is {}",
+        size_of_cell_pointer_array(&cell_pointers)
+    );
     Ok(BTreePage {
         header,
         cell_pointers,
     })
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Varint {
+    pub a0: u8,
+    pub tail: Vec<u8>,
+}
+fn read_exact<R: io::Read, const N: usize>(r: &mut R) -> io::Result<[u8; N]> {
+    let mut buf = [0; N];
+    io::Read::read_exact(r, &mut buf)?;
+    Ok(buf)
+}
+fn read_varint<R: io::Read>(r: &mut R) -> io::Result<Varint> {
+    let a0 = read_exact::<R, 1>(r)?[0];
+    let tail = match a0 {
+        0..=240 => vec![],
+        241..=248 => read_exact::<R, 1>(r)?.to_vec(),
+        249 => read_exact::<R, 2>(r)?.to_vec(),
+        _ => todo!(),
+    };
+    eprintln!("Varint read, a0={a0}, tail length={}", tail.len());
+    Ok(Varint { a0, tail })
+}
+fn calculate_varint(Varint { a0, tail }: &Varint) -> u64 {
+    match tail.len() {
+        0 => *a0 as u64,
+        1 => 240_u64 + 256_u64 * (*a0 as u64 - 241_u64) + tail[0] as u64,
+        2 => 2288_u64 + 256_u64 * tail[0] as u64 + tail[1] as u64,
+        _ => todo!(),
+    }
+}
+pub struct BTreeLeafTableCell {
+    /// A [`Varint`] which is the total number
+    /// of bytes of payload, including overflow
+    pub total_payload_bytes: Varint,
+    /// A [`Varint`] which is the integer key, a.k.a. rowid
+    pub rowid: Varint,
+    /// The initial portion of the payload
+    /// that does not spill to overflow pages
+    pub initial_payload: Vec<u8>,
+    /// Integer page number for the first page
+    /// of the overflow page list - omitted if
+    /// all payload fits on the b-tree page
+    pub first_overflow_page_number: Option<u32>,
+}
+fn read_leaf_table_cell<R: io::Read>(r: &mut R) -> io::Result<BTreeLeafTableCell> {
+    let total_payload_bytes = read_varint(r)?;
+    let calculated_total_payload_bytes = calculate_varint(&total_payload_bytes);
+    eprintln!("total payload bytes calculated as {calculated_total_payload_bytes}");
+    let rowid = read_varint(r)?;
+    Ok(BTreeLeafTableCell {
+        total_payload_bytes,
+        rowid,
+        initial_payload: vec![],
+        first_overflow_page_number: None,
+    })
+}
+pub enum BTreeCell {
+    LeafTable(BTreeLeafTableCell),
+}
+fn read_cell<R: io::Read>(r: &mut R, r#type: BTreePageType) -> io::Result<BTreeCell> {
+    match r#type {
+        BTreePageType::LeafTable => read_leaf_table_cell(r).map(BTreeCell::LeafTable),
+        _ => todo!(),
+    }
+}
 #[repr(transparent)]
 pub struct TableBTreeInteriorCell {
     /// A big-endian number which is the left child pointer
