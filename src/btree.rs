@@ -350,32 +350,14 @@ pub struct Record {
 }
 pub fn read_record<R: io::Read>(r: &mut R) -> io::Result<Record> {
     let header = read_record_header(r)?;
+    eprintln!("RECORD SIZE: {:?}", calculate_varint(&header.size));
+    eprintln!("RECORD TYPE: {:?}", calculate_varint(&header.serial_type));
 
-    // let size = calculate_varint(&header.size);
-    // eprintln!("Calculated record_size={size}");
-
-    // let body = match calculate_varint(&header.serial_type) {
-    //     // Value is a string
-    //     val if val >= 13 && val % 2 != 0 => {
-    //         let size = (val as usize - 13) / 2;
-    //         eprintln!("Value is a string with size {size}");
-    //         let mut buf = vec![0; size];
-    //         io::Read::read_exact(r, &mut buf)?;
-    //         buf
-    //     }
-    //     _ => todo!(),
-    // };
-
-    // eprintln!("Record body: {}", String::from_utf8_lossy(&body));
-    eprintln!("Reading body");
     let elt = read_record_element(r, &header)?;
-    // let body: Vec<RecordElement> =
-    //     core::iter::from_fn(|| read_record_element(r, &header).ok()).collect();
-    // for RecordElement(bytes) in body.as_slice() {
-    //     eprintln!("Record element={}", String::from_utf8_lossy(bytes));
-    // }
+
     let mut tail = vec![];
     io::Read::read_to_end(r, &mut tail)?;
+
     eprintln!("TABLE NAME: {}", String::from_utf8_lossy(&elt.0));
     eprintln!("TABLE DATA: {}", String::from_utf8_lossy(&tail));
 
