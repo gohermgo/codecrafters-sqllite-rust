@@ -56,8 +56,14 @@ fn tables_command(database_path: impl AsRef<Path>) -> io::Result<()> {
             header.page_size as usize,
         ) {
             eprintln!("Read cell {cell:?}");
-            let rec = btree::read_record(&mut page.content.as_slice());
-            eprintln!("Record {rec:?}");
+            match cell {
+                btree::BTreeCell::LeafTable(btree::BTreeLeafTableCell {
+                    initial_payload, ..
+                }) => {
+                    let rec = btree::read_record(&mut initial_payload.as_slice());
+                    eprintln!("Record {rec:?}");
+                }
+            }
         }
     }
 
