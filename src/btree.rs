@@ -126,7 +126,7 @@ pub fn read_page<R: io::Read>(r: &mut R) -> io::Result<BTreePage> {
     let header = read_page_header(r)?;
     eprintln!("Read page with header {header:?}");
     let mut cell_pointers =
-        vec![0; header.inner.cell_count as usize * size_of::<BTreeCellPointer>()];
+        vec![0; header.inner.cell_count as usize * core::mem::size_of::<BTreeCellPointer>()];
     io::Read::read_exact(r, &mut cell_pointers)?;
     let cell_pointers = cell_pointers
         .chunks_exact(2)
