@@ -392,7 +392,7 @@ pub struct Schema {
     pub r#type: Vec<u8>,
     pub name: Vec<u8>,
     pub table_name: Vec<u8>,
-    pub rootpage: Varint,
+    pub rootpage: u8,
     pub sql: Vec<u8>,
 }
 pub fn read_schema(RawRecord { header, data }: RawRecord) -> io::Result<Schema> {
