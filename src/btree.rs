@@ -397,17 +397,17 @@ pub fn read_schema(RawRecord { header, data }: RawRecord) -> io::Result<Schema> 
     eprintln!("\n\nREAD SCHEMA");
     let mut src = data.as_slice();
 
-    eprintln!("\nREAD TYPE");
+    eprintln!("\nREAD TYPE (LEN={})", src.len());
     let type_varint = &header.serial_types[0];
     let RecordElement(r#type) = read_record_element(&mut src, type_varint)?;
     eprintln!("TYPE={}", String::from_utf8_lossy(&r#type));
 
-    eprintln!("\nREAD NAME");
+    eprintln!("\nREAD NAME (LEN={})", src.len());
     let name_varint = &header.serial_types[1];
     let RecordElement(name) = read_record_element(&mut src, name_varint)?;
     eprintln!("NAME={}", String::from_utf8_lossy(&name));
 
-    eprintln!("\nREAD TABLE_NAME");
+    eprintln!("\nREAD TABLE_NAME (LEN={})", src.len());
     let table_name_varint = &header.serial_types[2];
     let RecordElement(table_name) = read_record_element(&mut src, table_name_varint)?;
     eprintln!("TABLE_NAME={}", String::from_utf8_lossy(&table_name));
@@ -416,7 +416,7 @@ pub fn read_schema(RawRecord { header, data }: RawRecord) -> io::Result<Schema> 
     let rootpage = header.serial_types[3].clone();
     eprintln!("ROOTPAGE={}", calculate_varint(&rootpage));
 
-    eprintln!("\nREAD SQL");
+    eprintln!("\nREAD SQL (LEN={})", src.len());
     let sql_varint = &header.serial_types[4];
     let RecordElement(sql) = read_record_element(&mut src, sql_varint)?;
     eprintln!("SQL={}", String::from_utf8_lossy(&sql));
