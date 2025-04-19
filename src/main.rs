@@ -172,16 +172,14 @@ fn main() -> Result<()> {
             let database = read_database(&mut file)?;
             // let header = read_database_header(&mut file)?;
             eprintln!("Read table with header {:#?}", database.header);
-            for elt in database.content {
-                eprintln!("Parsed one table {}", elt.data.len());
-            }
-            // eprintln!("Table data has length {}", table.data.len());
 
             // You can use print statements as follows for debugging, they'll be visible when running tests.
             println!("Logs from your program will appear here!");
 
             // Uncomment this block to pass the first stage
-            println!("database page size: {}", database.header.page_size);
+            // println!("database page size: {}", database.header.page_size);
+            let number_of_tables = database.content.count();
+            println!("number of tables: {number_of_tables}");
         }
         _ => bail!("Missing or invalid command passed: {}", command),
     }
