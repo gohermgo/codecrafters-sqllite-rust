@@ -320,7 +320,6 @@ pub struct RecordHeader {
 fn read_record_header<R: io::Read>(r: &mut R) -> io::Result<RecordHeader> {
     let size = read_varint(r)?;
     let serial_type = read_varint(r)?;
-    eprintln!("Serial type: {}", calculate_varint(&serial_type));
     Ok(RecordHeader { size, serial_type })
 }
 #[derive(Debug)]
@@ -334,8 +333,16 @@ pub fn read_record<R: io::Read>(r: &mut R) -> io::Result<Record> {
     let size = calculate_varint(&header.size);
     eprintln!("Calculated record_size={size}");
 
-    let mut body = vec![];
-    io::Read::read_to_end(r, &mut body)?;
+    let body = match calculate_varint(&header.serial_type) {
+        // Value is a string
+        val if val >= 13 && val % 2 != 0 => {
+            let size = (val as usize - 13) / 2;
+            let mut buf = vec![0; size];
+            io::Read::read_exact(r, &mut buf)?;
+            buf
+        }
+        _ => todo!(),
+    };
 
     eprintln!("Record body: {}", String::from_utf8_lossy(&body));
 
