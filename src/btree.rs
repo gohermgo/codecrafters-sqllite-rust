@@ -337,6 +337,7 @@ pub fn read_record<R: io::Read>(r: &mut R) -> io::Result<Record> {
         // Value is a string
         val if val >= 13 && val % 2 != 0 => {
             let size = (val as usize - 13) / 2;
+            eprintln!("Value is a string with size {size}");
             let mut buf = vec![0; size];
             io::Read::read_exact(r, &mut buf)?;
             buf
