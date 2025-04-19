@@ -179,6 +179,10 @@ pub fn read_page<R: io::Read>(r: &mut R) -> io::Result<BTreePage> {
     let start = header.inner.content_area_start as usize;
     eprintln!("10 bytes in range {:?}", &content[start..start + 10]);
     eprintln!("10 bytes before {:?}", &content[start - 10..start]);
+    eprintln!(
+        "10 bytes offset {:?}",
+        &content[start - currently_read..(start - currently_read) + 10]
+    );
     Ok(BTreePage {
         header,
         cell_pointers,
