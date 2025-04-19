@@ -158,7 +158,8 @@ fn main() -> Result<()> {
             let mut file = fs::File::open(&args[1])?;
             let table = read_database_page(&mut file)?;
             // let header = read_database_header(&mut file)?;
-            eprintln!("Read table {table:#?}");
+            eprintln!("Read table with header {:#?}", table.header);
+            eprintln!("Table data has length {}", table.data.len());
 
             // You can use print statements as follows for debugging, they'll be visible when running tests.
             println!("Logs from your program will appear here!");
