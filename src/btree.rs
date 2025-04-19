@@ -180,6 +180,22 @@ pub fn read_page<R: io::Read>(r: &mut R) -> io::Result<BTreePage> {
         content,
     })
 }
+pub fn read_cells<'p>(
+    BTreePage {
+        cell_pointers: BTreeCellPointerArray(cells),
+        content,
+        header:
+            BTreePageHeader {
+                inner: BTreePageHeaderInner { r#type, .. },
+                ..
+            },
+        ..
+    }: &'p BTreePage,
+) -> impl Iterator<Item = BTreeCell> + 'p {
+    cells.iter().filter_map(|BTreeCellPointer(offset)| {
+        read_cell(&mut &content[*offset as usize..], *r#type).ok()
+    })
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Varint {
@@ -210,6 +226,7 @@ fn calculate_varint(Varint { a0, tail }: &Varint) -> u64 {
         _ => todo!(),
     }
 }
+#[derive(Debug)]
 pub struct BTreeLeafTableCell {
     /// A [`Varint`] which is the total number
     /// of bytes of payload, including overflow
@@ -236,6 +253,7 @@ fn read_leaf_table_cell<R: io::Read>(r: &mut R) -> io::Result<BTreeLeafTableCell
         first_overflow_page_number: None,
     })
 }
+#[derive(Debug)]
 pub enum BTreeCell {
     LeafTable(BTreeLeafTableCell),
 }

@@ -50,6 +50,9 @@ fn tables_command(database_path: impl AsRef<Path>) -> io::Result<()> {
 
     for page in btree_pages {
         eprintln!("Read btree-page {page:?}");
+        for cell in btree::read_cells(&page) {
+            eprintln!("Read cell {cell:?}");
+        }
     }
 
     Ok(())
