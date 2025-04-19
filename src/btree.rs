@@ -344,7 +344,12 @@ fn read_record_header<R: io::Read>(r: &mut R) -> io::Result<RecordHeader> {
     let mut tail = vec![0; tail_size];
     io::Read::read_exact(r, &mut tail)?;
     let mut src = tail.as_slice();
-    let serial_types = core::iter::from_fn(|| read_varint(&mut src).ok()).collect();
+    let serial_types = core::iter::from_fn(|| {
+        let varint = read_varint(&mut src).ok();
+        eprintln!("VARINT={varint:?};SRC={src:?}");
+        varint
+    })
+    .collect();
     // let serial_type = read_varint(r)?;
 
     // let tail_size =
