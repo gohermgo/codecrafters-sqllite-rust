@@ -209,7 +209,9 @@ pub fn read_cells<'p>(
         eprintln!("Reading cell from content with length {}", content.len());
         let adjusted_offset = *offset as usize - header_size;
         eprintln!("Adjusted offset from {offset} to {adjusted_offset}");
-        read_cell(&mut &content[adjusted_offset..], *r#type).ok()
+        let mut src = &content[adjusted_offset..];
+        eprintln!("Reading cell from {src:?}");
+        read_cell(&mut src, *r#type).ok()
     })
 }
 
