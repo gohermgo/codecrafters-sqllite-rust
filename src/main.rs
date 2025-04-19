@@ -29,7 +29,7 @@ pub struct DatabaseHeader {
     ///
     /// Must be a power of two between 512 and 32768 inclusive,
     /// or the value 1 representing a page size of 65536.
-    pub page_size: [u8; 2],
+    pub page_size: u16,
     /// File format write version.
     ///
     /// 1 for Legacy; 2 for WAL.
@@ -87,7 +87,8 @@ pub struct DatabaseHeader {
 fn read_database_header<R: io::Read>(r: &mut R) -> io::Result<DatabaseHeader> {
     let mut buf = [0; 100];
     io::Read::read_exact(r, &mut buf)?;
-    let header: DatabaseHeader = unsafe { core::mem::transmute(buf) };
+    let mut header: DatabaseHeader = unsafe { core::mem::transmute(buf) };
+    header.page_size = header.page_size.to_be();
     Ok(header)
 }
 
@@ -118,10 +119,7 @@ fn main() -> Result<()> {
             println!("Logs from your program will appear here!");
 
             // Uncomment this block to pass the first stage
-            println!(
-                "database page size: {}",
-                u16::from_be_bytes(header.page_size)
-            );
+            println!("database page size: {}", header.page_size);
         }
         _ => bail!("Missing or invalid command passed: {}", command),
     }
