@@ -320,6 +320,7 @@ pub struct RecordHeader {
 fn read_record_header<R: io::Read>(r: &mut R) -> io::Result<RecordHeader> {
     let size = read_varint(r)?;
     let serial_type = read_varint(r)?;
+    eprintln!("Serial type: {}", calculate_varint(&serial_type));
     Ok(RecordHeader { size, serial_type })
 }
 #[derive(Debug)]
