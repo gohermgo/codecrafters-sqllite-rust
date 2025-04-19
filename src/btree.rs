@@ -265,6 +265,9 @@ fn calculate_varint(Varint { a0, tail }: &Varint) -> u64 {
         todo!()
     }
 }
+fn size_of_varint(Varint { a0, tail }: &Varint) -> usize {
+    core::mem::size_of_val(a0) + tail.len()
+}
 #[derive(Debug)]
 pub struct BTreeLeafTableCell {
     /// A [`Varint`] which is the total number
@@ -316,11 +319,20 @@ pub struct TableBTreeInteriorCell {
 pub struct RecordHeader {
     pub size: Varint,
     pub serial_type: Varint,
+    pub tail: Vec<u8>,
 }
 fn read_record_header<R: io::Read>(r: &mut R) -> io::Result<RecordHeader> {
     let size = read_varint(r)?;
     let serial_type = read_varint(r)?;
-    Ok(RecordHeader { size, serial_type })
+    let tail_size =
+        calculate_varint(&size) as usize - (size_of_varint(&size) + size_of_varint(&serial_type));
+    let mut tail = vec![0; tail_size];
+    io::Read::read_exact(r, &mut tail)?;
+    Ok(RecordHeader {
+        size,
+        serial_type,
+        tail,
+    })
 }
 #[derive(Debug)]
 pub struct Record {
