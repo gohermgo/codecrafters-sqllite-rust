@@ -131,14 +131,27 @@ fn read_database_header<R: io::Read>(r: &mut R) -> io::Result<DatabaseHeader> {
 }
 #[derive(Debug)]
 pub struct DatabaseTable {
-    pub header: DatabaseHeader,
-    pub data: Vec<u8>,
+    data: Vec<u8>,
 }
-fn read_database_page<R: io::Read>(r: &mut R) -> io::Result<DatabaseTable> {
-    read_database_header(r).and_then(|header| {
-        let mut data = vec![0; header.page_size as usize];
-        io::Read::read_exact(r, data.as_mut_slice())?;
-        Ok(DatabaseTable { header, data })
+fn read_database_table<R: io::Read>(r: &mut R, page_size: usize) -> io::Result<DatabaseTable> {
+    let mut data = vec![0; page_size];
+    io::Read::read_exact(r, data.as_mut_slice())?;
+    Ok(DatabaseTable { data })
+}
+#[derive(Debug)]
+pub struct DatabaseFileContent<D> {
+    pub header: DatabaseHeader,
+    pub content: D,
+}
+fn read_database<'r, R: io::Read>(
+    r: &'r mut R,
+) -> io::Result<DatabaseFileContent<impl Iterator<Item = DatabaseTable> + 'r>> {
+    read_database_header(r).map(|header| {
+        let page_size = header.page_size as usize;
+        DatabaseFileContent {
+            header,
+            content: core::iter::from_fn(move || read_database_table(r, page_size).ok()),
+        }
     })
 }
 
@@ -156,16 +169,19 @@ fn main() -> Result<()> {
     match command.as_str() {
         ".dbinfo" => {
             let mut file = fs::File::open(&args[1])?;
-            let table = read_database_page(&mut file)?;
+            let database = read_database(&mut file)?;
             // let header = read_database_header(&mut file)?;
-            eprintln!("Read table with header {:#?}", table.header);
-            eprintln!("Table data has length {}", table.data.len());
+            eprintln!("Read table with header {:#?}", database.header);
+            for elt in database.content {
+                eprintln!("Parsed one table {}", elt.data.len());
+            }
+            // eprintln!("Table data has length {}", table.data.len());
 
             // You can use print statements as follows for debugging, they'll be visible when running tests.
             println!("Logs from your program will appear here!");
 
             // Uncomment this block to pass the first stage
-            println!("database page size: {}", table.header.page_size);
+            println!("database page size: {}", database.header.page_size);
         }
         _ => bail!("Missing or invalid command passed: {}", command),
     }
