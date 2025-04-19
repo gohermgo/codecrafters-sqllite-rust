@@ -332,6 +332,13 @@ fn read_record_header<R: io::Read>(r: &mut R) -> io::Result<RecordHeader> {
 pub struct RecordElement(pub Vec<u8>);
 fn read_record_element<R: io::Read>(r: &mut R, serial_type: &Varint) -> io::Result<RecordElement> {
     let body = match calculate_varint(serial_type) {
+        // Value is a null
+        0 => vec![],
+        // Value is an 8-bit twos-complement integer
+        1 => {
+            eprintln!("Value is a 8-bit twos-complement integer");
+            read_exact::<R, 1>(r).map(|arr| arr.to_vec())?
+        }
         // Value is a string
         val if val >= 13 && val % 2 != 0 => {
             let size = (val as usize - 13) / 2;
