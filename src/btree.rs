@@ -345,7 +345,8 @@ fn read_record_element<R: io::Read>(r: &mut R, header: &RecordHeader) -> io::Res
 #[derive(Debug)]
 pub struct Record {
     pub header: RecordHeader,
-    pub body: Vec<RecordElement>,
+    pub elt: RecordElement,
+    pub tail: Vec<u8>,
 }
 pub fn read_record<R: io::Read>(r: &mut R) -> io::Result<Record> {
     let header = read_record_header(r)?;
@@ -367,11 +368,14 @@ pub fn read_record<R: io::Read>(r: &mut R) -> io::Result<Record> {
 
     // eprintln!("Record body: {}", String::from_utf8_lossy(&body));
     eprintln!("Reading body");
-    let body: Vec<RecordElement> =
-        core::iter::from_fn(|| read_record_element(r, &header).ok()).collect();
-    for RecordElement(bytes) in body.as_slice() {
-        eprintln!("Record element={}", String::from_utf8_lossy(bytes));
-    }
+    let elt = read_record_element(r, &header)?;
+    // let body: Vec<RecordElement> =
+    //     core::iter::from_fn(|| read_record_element(r, &header).ok()).collect();
+    // for RecordElement(bytes) in body.as_slice() {
+    //     eprintln!("Record element={}", String::from_utf8_lossy(bytes));
+    // }
+    let mut tail = vec![];
+    io::Read::read_to_end(r, &mut tail)?;
 
-    Ok(Record { header, body })
+    Ok(Record { header, elt, tail })
 }
