@@ -1,7 +1,7 @@
-use core::error::Error;
 use core::ffi::c_char;
 use core::fmt;
 
+use std::error::Error;
 use std::io;
 
 const HEADER_STRING_SIZE: usize = 16;
@@ -220,7 +220,7 @@ impl<Ty> BTreePageHeaderInner<Ty> {
 fn btree_page_read_header_inner<R: io::Read>(
     r: &mut R,
 ) -> io::Result<BTreePageHeaderInner<BTreePageType>> {
-    let mut buf = [0; size_of::<BTreePageHeaderInner<u8>>()];
+    let mut buf = [0; core::mem::size_of::<BTreePageHeaderInner<u8>>()];
     io::Read::read_exact(r, &mut buf)?;
     let BTreePageHeaderInner {
         r#type,
@@ -251,7 +251,7 @@ pub fn btree_page_read_header<R: io::Read>(r: &mut R) -> io::Result<BTreePageHea
         inner.r#type,
         BTreePageType::InteriorIndex | BTreePageType::InteriorTable
     ) {
-        let mut buf = [0; size_of::<u32>()];
+        let mut buf = [0; core::mem::size_of::<u32>()];
         io::Read::read_exact(r, &mut buf)?;
         right_most_pointer = Some(u32::from_be_bytes(buf));
     };
