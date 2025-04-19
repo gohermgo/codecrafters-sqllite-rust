@@ -333,8 +333,8 @@ pub fn read_record<R: io::Read>(r: &mut R) -> io::Result<Record> {
     let size = calculate_varint(&header.size);
     eprintln!("Calculated record_size={size}");
 
-    let mut body = vec![0; size as usize];
-    io::Read::read_exact(r, &mut body)?;
+    let mut body = vec![];
+    io::Read::read_to_end(r, &mut body)?;
 
     eprintln!("Record body: {}", String::from_utf8_lossy(&body));
 
