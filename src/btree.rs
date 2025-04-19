@@ -327,17 +327,8 @@ fn read_record_header<R: io::Read>(r: &mut R) -> io::Result<RecordHeader> {
     })
 }
 #[derive(Debug)]
-pub struct Record {
-    pub header: RecordHeader,
-    pub body: Vec<u8>,
-    pub tail: Vec<u8>,
-}
-pub fn read_record<R: io::Read>(r: &mut R) -> io::Result<Record> {
-    let header = read_record_header(r)?;
-
-    let size = calculate_varint(&header.size);
-    eprintln!("Calculated record_size={size}");
-
+pub struct RecordElement(pub Vec<u8>);
+fn read_record_element<R: io::Read>(r: &mut R, header: &RecordHeader) -> io::Result<RecordElement> {
     let body = match calculate_varint(&header.serial_type) {
         // Value is a string
         val if val >= 13 && val % 2 != 0 => {
@@ -349,11 +340,38 @@ pub fn read_record<R: io::Read>(r: &mut R) -> io::Result<Record> {
         }
         _ => todo!(),
     };
+    Ok(RecordElement(body))
+}
+#[derive(Debug)]
+pub struct Record {
+    pub header: RecordHeader,
+    pub body: Vec<RecordElement>,
+}
+pub fn read_record<R: io::Read>(r: &mut R) -> io::Result<Record> {
+    let header = read_record_header(r)?;
 
-    eprintln!("Record body: {}", String::from_utf8_lossy(&body));
+    // let size = calculate_varint(&header.size);
+    // eprintln!("Calculated record_size={size}");
 
-    let mut tail = vec![];
-    io::Read::read_to_end(r, &mut tail)?;
+    // let body = match calculate_varint(&header.serial_type) {
+    //     // Value is a string
+    //     val if val >= 13 && val % 2 != 0 => {
+    //         let size = (val as usize - 13) / 2;
+    //         eprintln!("Value is a string with size {size}");
+    //         let mut buf = vec![0; size];
+    //         io::Read::read_exact(r, &mut buf)?;
+    //         buf
+    //     }
+    //     _ => todo!(),
+    // };
 
-    Ok(Record { header, body, tail })
+    // eprintln!("Record body: {}", String::from_utf8_lossy(&body));
+    eprintln!("Reading body");
+    let body: Vec<RecordElement> =
+        core::iter::from_fn(|| read_record_element(r, &header).ok()).collect();
+    for RecordElement(bytes) in body.as_slice() {
+        eprintln!("Record element={}", String::from_utf8_lossy(bytes));
+    }
+
+    Ok(Record { header, body })
 }
