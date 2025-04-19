@@ -173,16 +173,10 @@ pub fn read_page<R: io::Read>(r: &mut R) -> io::Result<BTreePage> {
     eprintln!("Adjusted offset is {adjusted_offset}");
     // TODO: Make this actually use the DB-header to calculate and read etc etc
     let reserved_area = vec![];
+
     let mut content = vec![];
     io::Read::read_to_end(r, &mut content)?;
-    eprintln!("Read {} bytes of content", content.len());
-    let start = header.inner.content_area_start as usize;
-    eprintln!("10 bytes in range {:?}", &content[start..start + 10]);
-    eprintln!("10 bytes before {:?}", &content[start - 10..start]);
-    eprintln!(
-        "10 bytes offset {:?}",
-        &content[start - currently_read..(start - currently_read) + 10]
-    );
+
     Ok(BTreePage {
         header,
         cell_pointers,
@@ -205,18 +199,13 @@ pub fn read_cells<'p>(
     page_size: usize,
 ) -> impl Iterator<Item = BTreeCell> + 'p {
     let header_size = page_size - content.len();
-    eprintln!("Calculated header size as {header_size}");
+    // eprintln!("Calculated header size as {header_size}");
     let content_offset = header_size + initial_offset;
-    eprintln!("Calculated offset as {content_offset}");
-    let first_nonzero = content
-        .iter()
-        .enumerate()
-        .find_map(|(idx, elt)| elt.ne(&0).then_some(idx));
-    eprintln!("First nonzero at {first_nonzero:?}");
+    // eprintln!("Calculated offset as {content_offset}");
     cells.iter().filter_map(move |BTreeCellPointer(offset)| {
-        eprintln!("Reading cell from content with length {}", content.len());
+        // eprintln!("Reading cell from content with length {}", content.len());
         let adjusted_offset = *offset as usize - content_offset;
-        eprintln!("Adjusted offset from {offset} to {adjusted_offset}");
+        // eprintln!("Adjusted offset from {offset} to {adjusted_offset}");
         let mut src = &content[adjusted_offset..];
         read_cell(&mut src, *r#type).ok()
     })
@@ -286,7 +275,7 @@ pub struct BTreeLeafTableCell {
 fn read_leaf_table_cell<R: io::Read>(r: &mut R) -> io::Result<BTreeLeafTableCell> {
     let total_payload_bytes = read_varint(r)?;
     let calculated_total_payload_bytes = calculate_varint(&total_payload_bytes);
-    eprintln!("total payload bytes calculated as {calculated_total_payload_bytes}");
+    // eprintln!("total payload bytes calculated as {calculated_total_payload_bytes}");
     let rowid = read_varint(r)?;
 
     let mut initial_payload = vec![0; calculated_total_payload_bytes as usize];
@@ -324,10 +313,13 @@ pub struct RecordHeader {
 fn read_record_header<R: io::Read>(r: &mut R) -> io::Result<RecordHeader> {
     let size = read_varint(r)?;
     let serial_type = read_varint(r)?;
+
     let tail_size =
         calculate_varint(&size) as usize - (size_of_varint(&size) + size_of_varint(&serial_type));
+
     let mut tail = vec![0; tail_size];
     io::Read::read_exact(r, &mut tail)?;
+
     Ok(RecordHeader {
         size,
         serial_type,
@@ -338,6 +330,7 @@ fn read_record_header<R: io::Read>(r: &mut R) -> io::Result<RecordHeader> {
 pub struct Record {
     pub header: RecordHeader,
     pub body: Vec<u8>,
+    pub tail: Vec<u8>,
 }
 pub fn read_record<R: io::Read>(r: &mut R) -> io::Result<Record> {
     let header = read_record_header(r)?;
@@ -359,5 +352,8 @@ pub fn read_record<R: io::Read>(r: &mut R) -> io::Result<Record> {
 
     eprintln!("Record body: {}", String::from_utf8_lossy(&body));
 
-    Ok(Record { header, body })
+    let mut tail = vec![];
+    io::Read::read_to_end(r, &mut tail)?;
+
+    Ok(Record { header, body, tail })
 }
