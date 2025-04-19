@@ -289,6 +289,11 @@ fn read_leaf_table_cell<R: io::Read>(r: &mut R) -> io::Result<BTreeLeafTableCell
     let mut initial_payload = vec![0; calculated_total_payload_bytes as usize];
     io::Read::read_exact(r, &mut initial_payload)?;
 
+    eprintln!(
+        "Payload string: {:?}",
+        String::from_utf8_lossy(&initial_payload)
+    );
+
     Ok(BTreeLeafTableCell {
         total_payload_bytes,
         rowid,
