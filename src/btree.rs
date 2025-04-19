@@ -407,18 +407,21 @@ pub fn read_schema(RawRecord { header, data }: RawRecord) -> io::Result<Schema> 
     let RecordElement(name) = read_record_element(&mut src, name_varint)?;
     eprintln!("NAME={}", String::from_utf8_lossy(&name));
 
-    eprintln!("READ TABLE_NAME");
+    eprintln!("\nREAD TABLE_NAME");
     let table_name_varint = &header.serial_types[2];
     let RecordElement(table_name) = read_record_element(&mut src, table_name_varint)?;
+    eprintln!("TABLE_NAME={}", String::from_utf8_lossy(&table_name));
 
-    eprintln!("READ ROOTPAGE");
+    eprintln!("\nREAD ROOTPAGE");
     let rootpage = header.serial_types[3].clone();
+    eprintln!("ROOTPAGE={}", calculate_varint(&rootpage));
 
-    eprintln!("READ SQL");
+    eprintln!("\nREAD SQL");
     let sql_varint = &header.serial_types[4];
     let RecordElement(sql) = read_record_element(&mut src, sql_varint)?;
+    eprintln!("SQL={}", String::from_utf8_lossy(&sql));
 
-    eprintln!("SRC remainder={:?}", src);
+    eprintln!("\nSRC remainder={:?}", src);
 
     Ok(Schema {
         size: header.size,
