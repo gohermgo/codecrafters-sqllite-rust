@@ -248,11 +248,13 @@ fn read_varint<R: io::Read>(r: &mut R) -> io::Result<Varint> {
     Ok(Varint { a0, tail })
 }
 fn calculate_varint(Varint { a0, tail }: &Varint) -> u64 {
-    if tail.is_empty() {
-        (*a0 & 0b0111_1111) as u64
-    } else {
-        todo!()
-    }
+    let init = (*a0 & 0b0111_1111) as u64;
+    tail.iter().fold(init, |acc, elt| {
+        eprintln!("Starting with acc={acc}, elt={elt}");
+        let shifted = acc << 8;
+        let current = (*elt & 0b0111_1111) as u64;
+        shifted | current
+    })
 }
 fn size_of_varint(Varint { a0, tail }: &Varint) -> usize {
     core::mem::size_of_val(a0) + tail.len()
