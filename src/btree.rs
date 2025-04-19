@@ -224,6 +224,7 @@ fn parse_leaf_table_cell(
     let header = read_record_header(&mut src)?;
     let mut data = vec![];
     io::Read::read_to_end(&mut src, &mut data)?;
+    eprintln!("RECORD_DATA={}", String::from_utf8_lossy(&data));
     Ok(RawRecord { header, data })
 }
 pub fn parse_cell(cell: BTreeCell) -> io::Result<RawRecord> {
