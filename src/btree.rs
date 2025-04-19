@@ -347,7 +347,10 @@ fn read_record_element<R: io::Read>(r: &mut R, serial_type: &Varint) -> io::Resu
             let size = (val as usize - 13) / 2;
             eprintln!("Value is a string with size {size}");
             let mut buf = vec![0; size];
-            io::Read::read_exact(r, &mut buf)?;
+            if let Err(e) = io::Read::read_exact(r, &mut buf) {
+                eprintln!("Could not read exact: {e}");
+            };
+            eprintln!("Buffer length={}", buf.len());
             buf
         }
         _ => todo!(),
