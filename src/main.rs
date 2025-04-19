@@ -129,6 +129,18 @@ fn read_database_header<R: io::Read>(r: &mut R) -> io::Result<DatabaseHeader> {
     let header: DatabaseHeader = unsafe { core::mem::transmute(buf) };
     Ok(header.to_be())
 }
+#[derive(Debug)]
+pub struct DatabaseTable {
+    pub header: DatabaseHeader,
+    pub data: Vec<u8>,
+}
+fn read_database_page<R: io::Read>(r: &mut R) -> io::Result<DatabaseTable> {
+    read_database_header(r).and_then(|header| {
+        let mut data = vec![0; header.page_size as usize];
+        io::Read::read_exact(r, data.as_mut_slice())?;
+        Ok(DatabaseTable { header, data })
+    })
+}
 
 fn main() -> Result<()> {
     // Parse arguments
@@ -144,20 +156,15 @@ fn main() -> Result<()> {
     match command.as_str() {
         ".dbinfo" => {
             let mut file = fs::File::open(&args[1])?;
-            let header = read_database_header(&mut file)?;
-            eprintln!("Read header {header:#?}");
-            // let mut header = [0; 100];
-            // file.read_exact(&mut header)?;
-
-            // The page size is stored at the 16th byte offset, using 2 bytes in big-endian order
-            // #[allow(unused_variables)]
-            // let page_size = u16::from_be_bytes([header[16], header[17]]);
+            let table = read_database_page(&mut file)?;
+            // let header = read_database_header(&mut file)?;
+            eprintln!("Read table {table:#?}");
 
             // You can use print statements as follows for debugging, they'll be visible when running tests.
             println!("Logs from your program will appear here!");
 
             // Uncomment this block to pass the first stage
-            println!("database page size: {}", header.page_size);
+            println!("database page size: {}", table.header.page_size);
         }
         _ => bail!("Missing or invalid command passed: {}", command),
     }
