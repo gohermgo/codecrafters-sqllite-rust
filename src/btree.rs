@@ -218,7 +218,6 @@ pub fn read_cells<'p>(
         let adjusted_offset = *offset as usize - content_offset;
         eprintln!("Adjusted offset from {offset} to {adjusted_offset}");
         let mut src = &content[adjusted_offset..];
-        eprintln!("Reading cell from {src:?}");
         read_cell(&mut src, *r#type).ok()
     })
 }
@@ -232,6 +231,32 @@ fn read_exact<R: io::Read, const N: usize>(r: &mut R) -> io::Result<[u8; N]> {
     let mut buf = [0; N];
     io::Read::read_exact(r, &mut buf)?;
     Ok(buf)
+}
+fn read_one<R: io::Read>(r: &mut R) -> io::Result<u8> {
+    read_exact(r).map(|[elt]: [u8; 1]| elt)
+}
+fn high_bit_is_set(val: &u8) -> bool {
+    val & 0b1000_0000 != 0
+}
+fn read_varint_v2<R: io::Read>(r: &mut R) -> io::Result<Varint> {
+    let a0 = read_one(r)?;
+
+    let mut prev = a0;
+
+    let tail = core::iter::from_fn(|| {
+        if !high_bit_is_set(&prev) {
+            return None;
+        };
+
+        let next = read_one(r).ok()?;
+
+        prev = next;
+
+        Some(next)
+    })
+    .collect();
+
+    Ok(Varint { a0, tail })
 }
 fn read_varint<R: io::Read>(r: &mut R) -> io::Result<Varint> {
     let a0 = read_exact::<R, 1>(r)?[0];
@@ -268,10 +293,10 @@ pub struct BTreeLeafTableCell {
     pub first_overflow_page_number: Option<u32>,
 }
 fn read_leaf_table_cell<R: io::Read>(r: &mut R) -> io::Result<BTreeLeafTableCell> {
-    let total_payload_bytes = read_varint(r)?;
+    let total_payload_bytes = read_varint_v2(r)?;
     let calculated_total_payload_bytes = calculate_varint(&total_payload_bytes);
     eprintln!("total payload bytes calculated as {calculated_total_payload_bytes}");
-    let rowid = read_varint(r)?;
+    let rowid = read_varint_v2(r)?;
     Ok(BTreeLeafTableCell {
         total_payload_bytes,
         rowid,
