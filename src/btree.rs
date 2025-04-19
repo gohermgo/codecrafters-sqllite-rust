@@ -316,3 +316,30 @@ pub struct TableBTreeInteriorCell {
     /// A big-endian number which is the left child pointer
     pub page_number: u32,
 }
+
+#[derive(Debug)]
+pub struct RecordHeader {
+    pub size: Varint,
+    pub serial_type: Varint,
+}
+fn read_record_header<R: io::Read>(r: &mut R) -> io::Result<RecordHeader> {
+    let size = read_varint(r)?;
+    let serial_type = read_varint(r)?;
+    Ok(RecordHeader { size, serial_type })
+}
+#[derive(Debug)]
+pub struct Record {
+    pub header: RecordHeader,
+    pub body: Vec<u8>,
+}
+pub fn read_record<R: io::Read>(r: &mut R) -> io::Result<Record> {
+    let header = read_record_header(r)?;
+
+    let size = calculate_varint(&header.size);
+    eprintln!("Calculated record_size={size}");
+
+    let mut body = vec![0; size as usize];
+    io::Read::read_exact(r, &mut body)?;
+
+    Ok(Record { header, body })
+}
