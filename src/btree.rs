@@ -156,6 +156,8 @@ fn size_of_cell_pointer_array(BTreeCellPointerArray(xs): &BTreeCellPointerArray)
 pub struct BTreePage {
     pub header: BTreePageHeader,
     pub cell_pointers: BTreeCellPointerArray,
+    pub reserved_area: Vec<u8>,
+    pub content: Vec<u8>,
 }
 pub fn read_page<R: io::Read>(r: &mut R) -> io::Result<BTreePage> {
     let header = read_page_header(r)?;
@@ -166,9 +168,16 @@ pub fn read_page<R: io::Read>(r: &mut R) -> io::Result<BTreePage> {
         "Size of cell-pointer array is {}",
         size_of_cell_pointer_array(&cell_pointers)
     );
+    // TODO: Make this actually use the DB-header to calculate and read etc etc
+    let reserved_area = vec![];
+    let mut content = vec![];
+    io::Read::read_to_end(r, &mut content)?;
+    eprintln!("Read {} bytes of content", content.len());
     Ok(BTreePage {
         header,
         cell_pointers,
+        reserved_area,
+        content,
     })
 }
 
