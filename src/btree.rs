@@ -333,6 +333,7 @@ fn read_record_header<R: io::Read>(r: &mut R) -> io::Result<RecordHeader> {
 #[derive(Debug)]
 pub struct RecordElement(pub Vec<u8>);
 fn read_record_element<R: io::Read>(r: &mut R, serial_type: &Varint) -> io::Result<RecordElement> {
+    eprintln!("READ RECORD: {serial_type:?}");
     let body = match calculate_varint(serial_type) {
         // Value is a null
         0 => vec![],
