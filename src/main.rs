@@ -2,8 +2,8 @@ use core::ffi::c_char;
 
 use anyhow::{bail, Result};
 
-use std::fs;
 use std::io;
+use std::{fs, path::Path};
 
 /// A dot-command has the structure:
 ///  - It must begin with its "." at the left margin with no preceding whitespace.
@@ -143,16 +143,24 @@ pub struct DatabaseFileContent<D> {
     pub header: DatabaseHeader,
     pub content: D,
 }
-fn read_database<'r, R: io::Read>(
-    r: &'r mut R,
-) -> io::Result<DatabaseFileContent<impl Iterator<Item = DatabaseTable> + 'r>> {
-    read_database_header(r).map(|header| {
+fn read_database<R: io::Read>(
+    mut r: R,
+) -> io::Result<DatabaseFileContent<impl Iterator<Item = DatabaseTable>>> {
+    read_database_header(&mut r).map(|header| {
         let page_size = header.page_size as usize;
         DatabaseFileContent {
             header,
-            content: core::iter::from_fn(move || read_database_table(r, page_size).ok()),
+            content: core::iter::from_fn(move || read_database_table(&mut r, page_size).ok()),
         }
     })
+}
+
+fn db_info_command(database_path: impl AsRef<Path>) -> io::Result<()> {
+    let database = fs::File::open(database_path).and_then(read_database)?;
+    println!("database page size: {}", database.header.page_size);
+    let number_of_tables = database.content.count();
+    println!("number of tables: {number_of_tables}");
+    Ok(())
 }
 
 fn main() -> Result<()> {
@@ -167,20 +175,7 @@ fn main() -> Result<()> {
     // Parse command and act accordingly
     let command = &args[2];
     match command.as_str() {
-        ".dbinfo" => {
-            let mut file = fs::File::open(&args[1])?;
-            let database = read_database(&mut file)?;
-            // let header = read_database_header(&mut file)?;
-            eprintln!("Read table with header {:#?}", database.header);
-
-            // You can use print statements as follows for debugging, they'll be visible when running tests.
-            println!("Logs from your program will appear here!");
-
-            // Uncomment this block to pass the first stage
-            println!("database page size: {}", database.header.page_size);
-            let number_of_tables = database.content.count();
-            println!("number of tables: {number_of_tables}");
-        }
+        ".dbinfo" => db_info_command(&args[1])?,
         _ => bail!("Missing or invalid command passed: {}", command),
     }
 
