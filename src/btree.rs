@@ -93,7 +93,6 @@ fn read_page_header_inner<R: io::Read>(
     })
 }
 #[derive(Debug)]
-#[repr(C)]
 pub struct BTreePageHeader {
     pub inner: BTreePageHeaderInner<BTreePageType>,
     pub right_most_pointer: Option<u32>,

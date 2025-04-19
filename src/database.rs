@@ -143,6 +143,7 @@ pub fn read_with<T, R: io::Read + 'static>(
     mut f: impl FnMut(&mut R, usize) -> Option<T> + 'static,
 ) -> io::Result<DatabaseFileContent<impl Iterator<Item = T>>> {
     read_header(&mut r).map(move |header| {
+        eprintln!("Read header {header:?}");
         let page_size = header.page_size as usize;
         let content = core::iter::from_fn(move || f(&mut r, page_size));
         DatabaseFileContent { header, content }
