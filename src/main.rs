@@ -84,7 +84,7 @@ pub struct DatabaseHeader {
     pub version_valid_for: u32,
     pub sqlite_version_number: u32,
 }
-type DatabaseHeaderArray = [u8; size_of::<DatabaseHeader>()];
+type DatabaseHeaderArray = [u8; core::mem::size_of::<DatabaseHeader>()];
 fn deserialize_database_header(src: DatabaseHeaderArray) -> DatabaseHeader {
     let mut header: DatabaseHeader = unsafe { core::mem::transmute(src) };
 
