@@ -397,13 +397,15 @@ pub fn read_schema(RawRecord { header, data }: RawRecord) -> io::Result<Schema> 
     eprintln!("\n\nREAD SCHEMA");
     let mut src = data.as_slice();
 
-    eprintln!("READ TYPE");
+    eprintln!("\nREAD TYPE");
     let type_varint = &header.serial_types[0];
     let RecordElement(r#type) = read_record_element(&mut src, type_varint)?;
+    eprintln!("TYPE={}", String::from_utf8_lossy(&r#type));
 
-    eprintln!("READ NAME");
+    eprintln!("\nREAD NAME");
     let name_varint = &header.serial_types[1];
     let RecordElement(name) = read_record_element(&mut src, name_varint)?;
+    eprintln!("NAME={}", String::from_utf8_lossy(&name));
 
     eprintln!("READ TABLE_NAME");
     let table_name_varint = &header.serial_types[2];
