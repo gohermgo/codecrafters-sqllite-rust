@@ -172,12 +172,13 @@ pub fn read_page<R: io::Read>(r: &mut R) -> io::Result<BTreePage> {
     let adjusted_offset = header.inner.content_area_start as usize - currently_read;
     eprintln!("Adjusted offset is {adjusted_offset}");
     // TODO: Make this actually use the DB-header to calculate and read etc etc
-    let mut reserved_area = vec![0; adjusted_offset];
-    io::Read::read_to_end(r, &mut reserved_area)?;
-    eprintln!("Filled reserved area with {} bytes", reserved_area.len());
+    let reserved_area = vec![];
     let mut content = vec![];
     io::Read::read_to_end(r, &mut content)?;
     eprintln!("Read {} bytes of content", content.len());
+    let start = header.inner.content_area_start as usize;
+    eprintln!("10 bytes in range {:?}", &content[start..start + 10]);
+    eprintln!("10 bytes before {:?}", &content[start - 10..start]);
     Ok(BTreePage {
         header,
         cell_pointers,
