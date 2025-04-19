@@ -394,18 +394,25 @@ pub struct Schema {
     pub sql: Vec<u8>,
 }
 pub fn read_schema(RawRecord { mut header, data }: RawRecord) -> io::Result<Schema> {
+    eprintln!("\n\nREAD SCHEMA");
     let mut src = data.as_slice();
 
+    eprintln!("READ TYPE");
     let type_varint = header.serial_types.pop().expect("first serial type");
     let RecordElement(r#type) = read_record_element(&mut src, &type_varint)?;
 
+    eprintln!("READ NAME");
     let name_varint = header.serial_types.pop().expect("second serial type");
     let RecordElement(name) = read_record_element(&mut src, &name_varint)?;
+
+    eprintln!("READ TABLE_NAME");
     let table_name_varint = header.serial_types.pop().expect("third serial type");
     let RecordElement(table_name) = read_record_element(&mut src, &table_name_varint)?;
 
+    eprintln!("READ ROOTPAGE");
     let rootpage = header.serial_types.pop().expect("root page serial type");
 
+    eprintln!("READ SQL");
     let sql_varint = header.serial_types.pop().expect("sql serial type");
     let RecordElement(sql) = read_record_element(&mut src, &sql_varint)?;
 
