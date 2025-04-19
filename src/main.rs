@@ -29,7 +29,7 @@ fn db_info_command(database_path: impl AsRef<Path>) -> io::Result<()> {
 struct SqliteArgs {
     database_path: String,
     command: String,
-    #[expect(dead_code)]
+    #[allow(dead_code)]
     remainder: env::Args,
 }
 fn args() -> SqliteArgs {
