@@ -201,6 +201,7 @@ pub fn read_cells<'p>(
             },
         ..
     }: &'p BTreePage,
+    initial_offset: usize,
     page_size: usize,
 ) -> impl Iterator<Item = BTreeCell> + 'p {
     let header_size = page_size - content.len();

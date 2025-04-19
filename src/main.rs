@@ -50,7 +50,11 @@ fn tables_command(database_path: impl AsRef<Path>) -> io::Result<()> {
 
     for page in btree_pages {
         eprintln!("Read btree-page {page:?}");
-        for cell in btree::read_cells(&page, header.page_size as usize) {
+        for cell in btree::read_cells(
+            &page,
+            core::mem::size_of_val(&header),
+            header.page_size as usize,
+        ) {
             eprintln!("Read cell {cell:?}");
         }
     }
