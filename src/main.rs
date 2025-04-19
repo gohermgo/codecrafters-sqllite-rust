@@ -57,6 +57,8 @@ fn tables_command(database_path: impl AsRef<Path>) -> io::Result<()> {
         ) {
             let rec = btree::parse_cell(cell);
             eprintln!("REC {rec:?}");
+            let res = rec.and_then(btree::read_schema);
+            eprintln!("SCHEMA {res:?}");
         }
     }
 

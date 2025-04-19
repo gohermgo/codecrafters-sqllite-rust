@@ -386,11 +386,39 @@ pub struct Record {
 }
 #[derive(Debug)]
 pub struct Schema {
+    pub size: Varint,
     pub r#type: Vec<u8>,
     pub name: Vec<u8>,
     pub table_name: Vec<u8>,
     pub rootpage: Varint,
     pub sql: Vec<u8>,
+}
+pub fn read_schema(RawRecord { mut header, data }: RawRecord) -> io::Result<Schema> {
+    let mut src = data.as_slice();
+
+    let type_varint = header.serial_types.pop().expect("first serial type");
+    let RecordElement(r#type) = read_record_element(&mut src, &type_varint)?;
+
+    let name_varint = header.serial_types.pop().expect("second serial type");
+    let RecordElement(name) = read_record_element(&mut src, &name_varint)?;
+    let table_name_varint = header.serial_types.pop().expect("third serial type");
+    let RecordElement(table_name) = read_record_element(&mut src, &table_name_varint)?;
+
+    let rootpage = header.serial_types.pop().expect("root page serial type");
+
+    let sql_varint = header.serial_types.pop().expect("sql serial type");
+    let RecordElement(sql) = read_record_element(&mut src, &sql_varint)?;
+
+    eprintln!("SRC remainder={:?}", src);
+
+    Ok(Schema {
+        size: header.size,
+        r#type,
+        name,
+        table_name,
+        rootpage,
+        sql,
+    })
 }
 pub fn read_record<R: io::Read>(r: &mut R) -> io::Result<Record> {
     let header = read_record_header(r)?;
