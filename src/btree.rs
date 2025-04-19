@@ -273,7 +273,9 @@ fn calculate_varint(Varint { a0, tail }: &Varint) -> u64 {
         eprintln!("Starting with acc={acc}, elt={elt}");
         let shifted = acc << 8;
         let current = (*elt & 0b0111_1111) as u64;
-        shifted | current
+        let res = shifted | current;
+        eprintln!("SHIFTED={shifted}, CURRENT={current}, RES={res}");
+        res
     })
 }
 fn size_of_varint(Varint { a0, tail }: &Varint) -> usize {
