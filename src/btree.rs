@@ -392,7 +392,7 @@ pub struct Schema {
     pub r#type: Vec<u8>,
     pub name: Vec<u8>,
     pub table_name: Vec<u8>,
-    pub rootpage: u8,
+    pub rootpage: Varint,
     pub sql: Vec<u8>,
 }
 pub fn read_schema(RawRecord { header, data }: RawRecord) -> io::Result<Schema> {
@@ -414,11 +414,9 @@ pub fn read_schema(RawRecord { header, data }: RawRecord) -> io::Result<Schema> 
     let RecordElement(table_name) = read_record_element(&mut src, table_name_varint)?;
     eprintln!("TABLE_NAME={}", String::from_utf8_lossy(&table_name));
 
-    eprintln!("\nREAD ROOTPAGE (LEN={})", src.len());
-    let rootpage_varint = &header.serial_types[3];
-    let RecordElement(rootpage) = read_record_element(&mut src, rootpage_varint)?;
-    let rootpage = rootpage[0];
-    eprintln!("ROOTPAGE={rootpage}");
+    eprintln!("\nREAD ROOTPAGE");
+    let rootpage = header.serial_types[3].clone();
+    eprintln!("ROOTPAGE={}", calculate_varint(&rootpage));
 
     eprintln!("\nREAD SQL (LEN={})", src.len());
     let sql_varint = &header.serial_types[4];
