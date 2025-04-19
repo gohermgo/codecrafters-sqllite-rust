@@ -210,7 +210,27 @@ pub fn read_cells<'p>(
         read_cell(&mut src, *r#type).ok()
     })
 }
-
+#[derive(Debug)]
+pub struct RawRecord {
+    pub header: RecordHeader,
+    pub data: Vec<u8>,
+}
+fn parse_leaf_table_cell(
+    BTreeLeafTableCell {
+        initial_payload, ..
+    }: BTreeLeafTableCell,
+) -> io::Result<RawRecord> {
+    let mut src = initial_payload.as_slice();
+    let header = read_record_header(&mut src)?;
+    let mut data = vec![];
+    io::Read::read_to_end(&mut src, &mut data)?;
+    Ok(RawRecord { header, data })
+}
+pub fn parse_cell(cell: BTreeCell) -> io::Result<RawRecord> {
+    match cell {
+        BTreeCell::LeafTable(cell) => parse_leaf_table_cell(cell),
+    }
+}
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Varint {
     pub a0: u8,
@@ -316,6 +336,7 @@ pub struct RecordHeader {
 fn read_record_header<R: io::Read>(r: &mut R) -> io::Result<RecordHeader> {
     let size = read_varint(r)?;
     let tail_size = calculate_varint(&size) as usize - size_of_varint(&size);
+    eprintln!("RECORD HEADER: SIZE={:?}; TAIL_SIZE={tail_size}", size);
     let mut tail = vec![0; tail_size];
     io::Read::read_exact(r, &mut tail)?;
     let mut src = tail.as_slice();
@@ -362,6 +383,14 @@ pub struct Record {
     pub header: RecordHeader,
     // pub elt: RecordElement,
     pub tail: Vec<u8>,
+}
+#[derive(Debug)]
+pub struct Schema {
+    pub r#type: Vec<u8>,
+    pub name: Vec<u8>,
+    pub table_name: Vec<u8>,
+    pub rootpage: Varint,
+    pub sql: Vec<u8>,
 }
 pub fn read_record<R: io::Read>(r: &mut R) -> io::Result<Record> {
     let header = read_record_header(r)?;

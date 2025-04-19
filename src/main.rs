@@ -55,15 +55,8 @@ fn tables_command(database_path: impl AsRef<Path>) -> io::Result<()> {
             core::mem::size_of_val(&header),
             header.page_size as usize,
         ) {
-            // eprintln!("Read cell {cell:?}");
-            match cell {
-                btree::BTreeCell::LeafTable(btree::BTreeLeafTableCell {
-                    initial_payload, ..
-                }) => {
-                    let _rec = btree::read_record(&mut initial_payload.as_slice())
-                        .expect("Failed to read record");
-                }
-            }
+            let rec = btree::parse_cell(cell);
+            eprintln!("REC {rec:?}");
         }
     }
 
