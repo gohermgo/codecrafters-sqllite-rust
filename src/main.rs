@@ -19,6 +19,19 @@ pub const COMMANDS: [Command<'_>; COMMAND_COUNT] = [Command { name: "dbinfo" }];
 
 pub mod database;
 
+fn main() -> Result<()> {
+    let SqliteArgs {
+        database_path,
+        command,
+        remainder: _,
+    } = args();
+    match command.as_str() {
+        ".dbinfo" => db_info_command(database_path)?,
+        _ => bail!("Missing or invalid command passed: {}", command),
+    }
+
+    Ok(())
+}
 fn db_info_command(database_path: impl AsRef<Path>) -> io::Result<()> {
     let database = fs::File::open(database_path).and_then(database::read)?;
     println!("database page size: {}", database.header.page_size);
@@ -51,17 +64,4 @@ fn args() -> SqliteArgs {
         command,
         remainder: args,
     }
-}
-fn main() -> Result<()> {
-    let SqliteArgs {
-        database_path,
-        command,
-        remainder: _,
-    } = args();
-    match command.as_str() {
-        ".dbinfo" => db_info_command(database_path)?,
-        _ => bail!("Missing or invalid command passed: {}", command),
-    }
-
-    Ok(())
 }
