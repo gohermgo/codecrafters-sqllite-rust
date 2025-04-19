@@ -17,6 +17,7 @@ pub struct Command<'a> {
 pub const COMMAND_COUNT: usize = 1;
 pub const COMMANDS: [Command<'_>; COMMAND_COUNT] = [Command { name: "dbinfo" }];
 
+pub mod btree;
 pub mod database;
 
 fn main() -> Result<()> {
@@ -37,6 +38,19 @@ fn db_info_command(database_path: impl AsRef<Path>) -> io::Result<()> {
     println!("database page size: {}", database.header.page_size);
     let number_of_tables = database.content.count();
     println!("number of tables: {number_of_tables}");
+    Ok(())
+}
+fn tables_command(database_path: impl AsRef<Path>) -> io::Result<()> {
+    let database::DatabaseFileContent { header, content } =
+        fs::File::open(database_path).and_then(database::read)?;
+    let btree_pages = content.filter_map(|database::DatabaseTable(content)| {
+        btree::read_page(&mut content.as_slice()).ok()
+    });
+
+    for page in btree_pages {
+        eprintln!("Read btree-page {page:?}");
+    }
+
     Ok(())
 }
 struct SqliteArgs {
