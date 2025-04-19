@@ -206,6 +206,8 @@ pub fn read_cells<'p>(
 ) -> impl Iterator<Item = BTreeCell> + 'p {
     let header_size = page_size - content.len();
     eprintln!("Calculated header size as {header_size}");
+    let content_offset = header_size + initial_offset;
+    eprintln!("Calculated offset as {content_offset}");
     let first_nonzero = content
         .iter()
         .enumerate()
@@ -213,7 +215,7 @@ pub fn read_cells<'p>(
     eprintln!("First nonzero at {first_nonzero:?}");
     cells.iter().filter_map(move |BTreeCellPointer(offset)| {
         eprintln!("Reading cell from content with length {}", content.len());
-        let adjusted_offset = *offset as usize - header_size;
+        let adjusted_offset = *offset as usize - content_offset;
         eprintln!("Adjusted offset from {offset} to {adjusted_offset}");
         let mut src = &content[adjusted_offset..];
         eprintln!("Reading cell from {src:?}");
