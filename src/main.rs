@@ -177,7 +177,7 @@ fn main() -> Result<()> {
             println!("Logs from your program will appear here!");
 
             // Uncomment this block to pass the first stage
-            // println!("database page size: {}", database.header.page_size);
+            println!("database page size: {}", database.header.page_size);
             let number_of_tables = database.content.count();
             println!("number of tables: {number_of_tables}");
         }
