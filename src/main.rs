@@ -84,12 +84,25 @@ pub struct DatabaseHeader {
     pub version_valid_for: u32,
     pub sqlite_version_number: u32,
 }
+type DatabaseHeaderArray = [u8; size_of::<DatabaseHeader>()];
+fn deserialize_database_header(src: DatabaseHeaderArray) -> DatabaseHeader {
+    let mut header: DatabaseHeader = unsafe { core::mem::transmute(src) };
+
+    eprintln!("Header string: {:?}", unsafe {
+        core::ffi::CStr::from_ptr(header.header_string.as_ptr())
+    });
+
+    // header.page_size = header.page_size.to_be();
+    header.file_change_counter = header.file_change_counter.to_be();
+    header.in_header_database_size = header.in_header_database_size.to_be();
+    header.freelist_page_idx = header.freelist_page_idx.to_be();
+
+    header
+}
 fn read_database_header<R: io::Read>(r: &mut R) -> io::Result<DatabaseHeader> {
     let mut buf = [0; 100];
     io::Read::read_exact(r, &mut buf)?;
-    let mut header: DatabaseHeader = unsafe { core::mem::transmute(buf) };
-    header.page_size = header.page_size.to_be();
-    Ok(header)
+    Ok(deserialize_database_header(buf))
 }
 
 fn main() -> Result<()> {
