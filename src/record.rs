@@ -23,11 +23,11 @@ pub fn read_header<R: io::Read>(r: &mut R) -> io::Result<RecordHeader> {
 }
 #[derive(Debug)]
 pub struct RecordElement(pub Vec<u8>);
-fn is_string_serial_type(serial_type_value: u64) -> bool {
+pub fn is_string_serial_type(serial_type_value: u64) -> bool {
     let is_even = (serial_type_value % 2) == 0;
     (serial_type_value >= 13) && !is_even
 }
-fn string_serial_type_size(serial_type_value: u64) -> usize {
+pub fn string_serial_type_size(serial_type_value: u64) -> usize {
     (serial_type_value as usize - 13) / 2
 }
 fn serial_type_size(serial_type: &Varint) -> usize {

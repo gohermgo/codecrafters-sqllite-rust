@@ -341,11 +341,14 @@ pub fn read_schema(RawRecord { header, data }: RawRecord) -> io::Result<Schema> 
     eprintln!("ROOTPAGE={rootpage}");
 
     eprintln!("\nREAD SQL (LEN={})", src.len());
-    // let sql_varint = &header.serial_types[4];
+    let sql_varint = &header.serial_types[4];
+    let string_size = record::string_serial_type_size(varint::value_of(sql_varint));
+    eprintln!("SQL_SIZE_CALCULATED={string_size}");
     // let sql = read_encoded_string(&mut src, sql_varint)?;
     let mut sql = vec![];
     io::Read::read_to_end(&mut src, &mut sql)?;
 
+    eprintln!("SQL_SIZE_ACTUAL={}", sql.len());
     eprintln!("SQL={}", String::from_utf8_lossy(&sql));
 
     eprintln!("\nSRC remainder={:?}", src);
