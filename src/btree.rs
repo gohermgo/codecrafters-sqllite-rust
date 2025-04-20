@@ -1,7 +1,9 @@
 use core::fmt;
 
 use std::error::Error;
-use std::io;
+
+use crate::io;
+use crate::{varint, Varint};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(u8)]
@@ -210,6 +212,7 @@ pub fn read_cells<'p>(
         read_cell(&mut src, *r#type).ok()
     })
 }
+use crate::{record, RecordElement, RecordHeader};
 #[derive(Debug)]
 pub struct RawRecord {
     pub header: RecordHeader,
@@ -221,7 +224,7 @@ fn parse_leaf_table_cell(
     }: BTreeLeafTableCell,
 ) -> io::Result<RawRecord> {
     let mut src = initial_payload.as_slice();
-    let header = read_record_header(&mut src)?;
+    let header = record::read_header(&mut src)?;
     let mut data = vec![];
     io::Read::read_to_end(&mut src, &mut data)?;
     eprintln!("RECORD_DATA={}", String::from_utf8_lossy(&data));
@@ -232,56 +235,7 @@ pub fn parse_cell(cell: BTreeCell) -> io::Result<RawRecord> {
         BTreeCell::LeafTable(cell) => parse_leaf_table_cell(cell),
     }
 }
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Varint {
-    pub a0: u8,
-    pub tail: Vec<u8>,
-}
-fn read_exact<R: io::Read, const N: usize>(r: &mut R) -> io::Result<[u8; N]> {
-    let mut buf = [0; N];
-    io::Read::read_exact(r, &mut buf)?;
-    Ok(buf)
-}
-fn read_one<R: io::Read>(r: &mut R) -> io::Result<u8> {
-    read_exact(r).map(|[elt]: [u8; 1]| elt)
-}
-fn high_bit_is_set(val: &u8) -> bool {
-    val & 0b1000_0000 != 0
-}
-fn read_varint<R: io::Read>(r: &mut R) -> io::Result<Varint> {
-    let a0 = read_one(r)?;
 
-    let mut prev = a0;
-
-    let tail = core::iter::from_fn(|| {
-        if !high_bit_is_set(&prev) {
-            return None;
-        };
-
-        let next = read_one(r).ok()?;
-
-        prev = next;
-
-        Some(next)
-    })
-    .collect();
-
-    Ok(Varint { a0, tail })
-}
-fn calculate_varint(Varint { a0, tail }: &Varint) -> u64 {
-    let init = (*a0 & 0b0111_1111) as u64;
-    tail.iter().fold(init, |acc, elt| {
-        eprintln!("Starting with acc={acc}, elt={elt}");
-        let shifted = acc << 8;
-        let current = (*elt & 0b0111_1111) as u64;
-        let res = shifted | current;
-        eprintln!("SHIFTED={shifted}, CURRENT={current}, RES={res}");
-        res
-    })
-}
-fn size_of_varint(Varint { a0, tail }: &Varint) -> usize {
-    core::mem::size_of_val(a0) + tail.len()
-}
 #[derive(Debug)]
 pub struct BTreeLeafTableCell {
     /// A [`Varint`] which is the total number
@@ -298,10 +252,10 @@ pub struct BTreeLeafTableCell {
     pub first_overflow_page_number: Option<u32>,
 }
 fn read_leaf_table_cell<R: io::Read>(r: &mut R) -> io::Result<BTreeLeafTableCell> {
-    let total_payload_bytes = read_varint(r)?;
-    let calculated_total_payload_bytes = calculate_varint(&total_payload_bytes);
+    let total_payload_bytes = varint::read(r)?;
+    let calculated_total_payload_bytes = varint::value_of(&total_payload_bytes);
     // eprintln!("total payload bytes calculated as {calculated_total_payload_bytes}");
-    let rowid = read_varint(r)?;
+    let rowid = varint::read(r)?;
 
     let mut initial_payload = vec![0; calculated_total_payload_bytes as usize];
     io::Read::read_exact(r, &mut initial_payload)?;
@@ -332,63 +286,6 @@ pub struct TableBTreeInteriorCell {
 }
 
 #[derive(Debug)]
-pub struct RecordHeader {
-    pub size: Varint,
-    pub serial_types: Vec<Varint>,
-    // pub serial_type: Varint,
-    // pub tail: Vec<u8>,
-}
-fn read_record_header<R: io::Read>(r: &mut R) -> io::Result<RecordHeader> {
-    let size = read_varint(r)?;
-    let tail_size = calculate_varint(&size) as usize - size_of_varint(&size);
-    eprintln!("RECORD HEADER: SIZE={:?}; TAIL_SIZE={tail_size}", size);
-    let mut tail = vec![0; tail_size];
-    io::Read::read_exact(r, &mut tail)?;
-    let mut src = tail.as_slice();
-    let serial_types = core::iter::from_fn(|| {
-        let varint = read_varint(&mut src).ok();
-        eprintln!("VARINT={varint:?};SRC={src:?}");
-        varint
-    })
-    .collect();
-    // let serial_type = read_varint(r)?;
-
-    // let tail_size =
-    //     calculate_varint(&size) as usize - (size_of_varint(&size) + size_of_varint(&serial_type));
-
-    // let mut tail = vec![0; tail_size];
-    // io::Read::read_exact(r, &mut tail)?;
-
-    Ok(RecordHeader { size, serial_types })
-}
-#[derive(Debug)]
-pub struct RecordElement(pub Vec<u8>);
-fn read_record_element<R: io::Read>(r: &mut R, serial_type: &Varint) -> io::Result<RecordElement> {
-    eprintln!("READ RECORD: {serial_type:?}");
-    let body = match calculate_varint(serial_type) {
-        // Value is a null
-        0 => vec![],
-        // Value is an 8-bit twos-complement integer
-        1 => {
-            eprintln!("Value is a 8-bit twos-complement integer");
-            read_exact::<R, 1>(r).map(|arr| arr.to_vec())?
-        }
-        // Value is a string
-        val if val >= 13 && val % 2 != 0 => {
-            let size = (val as usize - 13) / 2;
-            eprintln!("Value is a string with size {size}");
-            let mut buf = vec![0; size];
-            if let Err(e) = io::Read::read_exact(r, &mut buf) {
-                eprintln!("Could not read exact: {e}");
-            };
-            eprintln!("Buffer length={}", buf.len());
-            buf
-        }
-        _ => todo!(),
-    };
-    Ok(RecordElement(body))
-}
-#[derive(Debug)]
 pub struct Record {
     pub header: RecordHeader,
     // pub elt: RecordElement,
@@ -409,26 +306,26 @@ pub fn read_schema(RawRecord { header, data }: RawRecord) -> io::Result<Schema> 
 
     eprintln!("\nREAD TYPE (LEN={})", src.len());
     let type_varint = &header.serial_types[0];
-    let RecordElement(r#type) = read_record_element(&mut src, type_varint)?;
+    let RecordElement(r#type) = record::read_record_element(&mut src, type_varint)?;
     eprintln!("TYPE={}", String::from_utf8_lossy(&r#type));
 
     eprintln!("\nREAD NAME (LEN={})", src.len());
     let name_varint = &header.serial_types[1];
-    let RecordElement(name) = read_record_element(&mut src, name_varint)?;
+    let RecordElement(name) = record::read_record_element(&mut src, name_varint)?;
     eprintln!("NAME={}", String::from_utf8_lossy(&name));
 
     eprintln!("\nREAD TABLE_NAME (LEN={})", src.len());
     let table_name_varint = &header.serial_types[2];
-    let RecordElement(table_name) = read_record_element(&mut src, table_name_varint)?;
+    let RecordElement(table_name) = record::read_record_element(&mut src, table_name_varint)?;
     eprintln!("TABLE_NAME={}", String::from_utf8_lossy(&table_name));
 
     eprintln!("\nREAD ROOTPAGE");
     let rootpage = header.serial_types[3].clone();
-    eprintln!("ROOTPAGE={}", calculate_varint(&rootpage));
+    eprintln!("ROOTPAGE={}", varint::value_of(&rootpage));
 
     eprintln!("\nREAD SQL (LEN={})", src.len());
     let sql_varint = &header.serial_types[4];
-    let RecordElement(sql) = read_record_element(&mut src, sql_varint)?;
+    let RecordElement(sql) = record::read_record_element(&mut src, sql_varint)?;
     eprintln!("SQL={}", String::from_utf8_lossy(&sql));
 
     eprintln!("\nSRC remainder={:?}", src);
@@ -443,11 +340,11 @@ pub fn read_schema(RawRecord { header, data }: RawRecord) -> io::Result<Schema> 
     })
 }
 pub fn read_record<R: io::Read>(r: &mut R) -> io::Result<Record> {
-    let header = read_record_header(r)?;
-    eprintln!("RECORD SIZE: {:?}", calculate_varint(&header.size));
+    let header = record::read_header(r)?;
+    eprintln!("RECORD SIZE: {:?}", varint::value_of(&header.size));
     for (idx, t) in header.serial_types.iter().enumerate() {
-        eprintln!("RECORD TYPE: {idx} -> {}", calculate_varint(t));
-        let elt = read_record_element(r, t)?;
+        eprintln!("RECORD TYPE: {idx} -> {}", varint::value_of(t));
+        let elt = record::read_record_element(r, t)?;
         eprintln!("TABLE NAME: {}", String::from_utf8_lossy(&elt.0));
     }
     // eprintln!("RECORD TYPE: {:?}", calculate_varint(&header.serial_type));

@@ -2,7 +2,7 @@ use anyhow::{bail, Result};
 
 use std::env;
 use std::fs;
-use std::io;
+// use std::io;
 use std::path::Path;
 
 /// A dot-command has the structure:
@@ -19,6 +19,12 @@ pub const COMMANDS: [Command<'_>; COMMAND_COUNT] = [Command { name: "dbinfo" }];
 
 pub mod btree;
 pub mod database;
+pub mod io;
+pub mod record;
+pub mod varint;
+
+pub use record::{RecordElement, RecordHeader};
+pub use varint::Varint;
 
 fn main() -> Result<()> {
     let SqliteArgs {
