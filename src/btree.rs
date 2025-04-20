@@ -320,7 +320,9 @@ pub fn read_schema(RawRecord { header, data }: RawRecord) -> io::Result<Schema> 
     eprintln!("TABLE_NAME={}", String::from_utf8_lossy(&table_name));
 
     eprintln!("\nREAD ROOTPAGE");
-    let rootpage = header.serial_types[3].clone();
+    let rootpage = varint::read(&mut src)?;
+    // let rootpage_varint = &header.serial_types[3];
+    // let RecordElement(rootpage) = record::read_element(&mut src, rootpage_varint)?;
     eprintln!("ROOTPAGE={}", varint::value_of(&rootpage));
 
     eprintln!("\nREAD SQL (LEN={})", src.len());

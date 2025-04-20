@@ -49,7 +49,7 @@ fn serial_type_size(serial_type: &Varint) -> usize {
         }
         _ => todo!(),
     };
-    eprintln!("SIZE FOR {serial_type:?}={size}");
+    eprintln!("SIZE={size} FOR {serial_type:?}");
     size
 }
 pub fn read_element<R: io::Read>(r: &mut R, serial_type: &Varint) -> io::Result<RecordElement> {
@@ -61,26 +61,4 @@ pub fn read_element<R: io::Read>(r: &mut R, serial_type: &Varint) -> io::Result<
         Ok(vec![])
     }
     .map(RecordElement)
-    // let body = match varint::value_of(serial_type) {
-    //     // Value is a null
-    //     NULL_SERIAL_TYPE => vec![],
-    //     // Value is an 8-bit twos-complement integer
-    //     EIGHT_BIT_SERIAL_TYPE => {
-    //         eprintln!("Value is a 8-bit twos-complement integer");
-    //         io::read_exact_vec(r, 1)?
-    //     }
-    //     // Value is a string
-    //     serial_type_value if is_string_serial_type(serial_type_value) => {
-    //         let size = (serial_type_value as usize - 13) / 2;
-    //         eprintln!("Value is a string with size {size}");
-    //         let mut buf = vec![0; size];
-    //         if let Err(e) = io::Read::read_exact(r, &mut buf) {
-    //             eprintln!("Could not read exact: {e}");
-    //         };
-    //         eprintln!("Buffer length={}", buf.len());
-    //         buf
-    //     }
-    //     _ => todo!(),
-    // };
-    // Ok(RecordElement(body))
 }
