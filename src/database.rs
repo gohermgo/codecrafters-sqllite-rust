@@ -145,7 +145,12 @@ pub fn read_with<T, R: io::Read + 'static>(
     read_header(&mut r).map(move |header| {
         eprintln!("Read header {header:?}");
         let page_size = header.page_size as usize;
-        let content = core::iter::from_fn(move || f(&mut r, page_size));
+        let mut read = 0;
+        let content = core::iter::from_fn(move || {
+            read += 1;
+            eprintln!("READING PAGE {read}");
+            f(&mut r, page_size)
+        });
         DatabaseFileContent { header, content }
     })
 }
