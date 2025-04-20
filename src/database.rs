@@ -117,8 +117,10 @@ fn read_header<R: io::Read>(r: &mut R) -> io::Result<DatabaseHeader> {
 #[derive(Debug)]
 pub struct DatabaseTable(pub Vec<u8>);
 fn read_table<R: io::Read>(r: &mut R, page_size: usize) -> io::Result<DatabaseTable> {
+    eprintln!("READING TABLE={page_size}");
     let mut data = vec![0; page_size];
     io::Read::read_exact(r, data.as_mut_slice())?;
+    eprintln!("READ TABLE SUCCESS");
     Ok(DatabaseTable(data))
 }
 #[derive(Debug)]
@@ -126,6 +128,7 @@ pub struct DatabaseFileContent<D> {
     pub header: DatabaseHeader,
     pub content: D,
 }
+// pub fn to_pages<R: io::Read + 'static>(r: R) -> io::Result<DatabaseFileContent<>>
 pub fn read<R: io::Read + 'static>(
     r: R,
 ) -> io::Result<DatabaseFileContent<impl Iterator<Item = DatabaseTable>>> {
