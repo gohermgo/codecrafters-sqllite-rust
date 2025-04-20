@@ -90,10 +90,8 @@ pub fn read_value<R: io::Read>(r: &mut R, serial_type: &Varint) -> io::Result<Re
         NULL_SERIAL_TYPE => Ok(RecordValue::Null),
         EIGHT_BIT_SERIAL_TYPE => io::read_one(r).map(RecordValue::TwosComplement8),
         serial_type_value if is_string_serial_type(serial_type_value) => {
-            io::read_exact_vec(r, string_serial_type_size(serial_type_value)).map(|s| {
-                eprintln!("ENCODEDSTRING={}", String::from_utf8_lossy(&s));
-                RecordValue::EncodedString(s)
-            })
+            io::read_exact_vec(r, string_serial_type_size(serial_type_value))
+                .map(RecordValue::EncodedString)
         }
         _ => todo!(),
     }
