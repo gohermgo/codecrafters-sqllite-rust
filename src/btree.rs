@@ -306,17 +306,17 @@ pub fn read_schema(RawRecord { header, data }: RawRecord) -> io::Result<Schema> 
 
     eprintln!("\nREAD TYPE (LEN={})", src.len());
     let type_varint = &header.serial_types[0];
-    let RecordElement(r#type) = record::read_record_element(&mut src, type_varint)?;
+    let RecordElement(r#type) = record::read_element(&mut src, type_varint)?;
     eprintln!("TYPE={}", String::from_utf8_lossy(&r#type));
 
     eprintln!("\nREAD NAME (LEN={})", src.len());
     let name_varint = &header.serial_types[1];
-    let RecordElement(name) = record::read_record_element(&mut src, name_varint)?;
+    let RecordElement(name) = record::read_element(&mut src, name_varint)?;
     eprintln!("NAME={}", String::from_utf8_lossy(&name));
 
     eprintln!("\nREAD TABLE_NAME (LEN={})", src.len());
     let table_name_varint = &header.serial_types[2];
-    let RecordElement(table_name) = record::read_record_element(&mut src, table_name_varint)?;
+    let RecordElement(table_name) = record::read_element(&mut src, table_name_varint)?;
     eprintln!("TABLE_NAME={}", String::from_utf8_lossy(&table_name));
 
     eprintln!("\nREAD ROOTPAGE");
@@ -325,7 +325,7 @@ pub fn read_schema(RawRecord { header, data }: RawRecord) -> io::Result<Schema> 
 
     eprintln!("\nREAD SQL (LEN={})", src.len());
     let sql_varint = &header.serial_types[4];
-    let RecordElement(sql) = record::read_record_element(&mut src, sql_varint)?;
+    let RecordElement(sql) = record::read_element(&mut src, sql_varint)?;
     eprintln!("SQL={}", String::from_utf8_lossy(&sql));
 
     eprintln!("\nSRC remainder={:?}", src);
@@ -344,7 +344,7 @@ pub fn read_record<R: io::Read>(r: &mut R) -> io::Result<Record> {
     eprintln!("RECORD SIZE: {:?}", varint::value_of(&header.size));
     for (idx, t) in header.serial_types.iter().enumerate() {
         eprintln!("RECORD TYPE: {idx} -> {}", varint::value_of(t));
-        let elt = record::read_record_element(r, t)?;
+        let elt = record::read_element(r, t)?;
         eprintln!("TABLE NAME: {}", String::from_utf8_lossy(&elt.0));
     }
     // eprintln!("RECORD TYPE: {:?}", calculate_varint(&header.serial_type));

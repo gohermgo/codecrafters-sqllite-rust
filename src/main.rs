@@ -62,7 +62,7 @@ fn tables_command(database_path: impl AsRef<Path>) -> io::Result<()> {
             header.page_size as usize,
         ) {
             let rec = btree::parse_cell(cell);
-            eprintln!("REC {rec:?}");
+            eprintln!("REC {rec:X?}");
             let res = rec.and_then(btree::read_schema);
             eprintln!("SCHEMA {res:?}");
         }

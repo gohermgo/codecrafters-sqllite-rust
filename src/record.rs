@@ -52,10 +52,7 @@ fn serial_type_size(serial_type: &Varint) -> usize {
     eprintln!("SIZE FOR {serial_type:?}={size}");
     size
 }
-pub fn read_record_element<R: io::Read>(
-    r: &mut R,
-    serial_type: &Varint,
-) -> io::Result<RecordElement> {
+pub fn read_element<R: io::Read>(r: &mut R, serial_type: &Varint) -> io::Result<RecordElement> {
     eprintln!("READ RECORD: {serial_type:?}");
     let size = serial_type_size(serial_type);
     if size > 0 {
