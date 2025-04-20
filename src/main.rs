@@ -35,7 +35,8 @@ fn main() -> Result<()> {
     match command.as_str() {
         ".dbinfo" => db_info_command(database_path)?,
         ".tables" => tables_command(database_path)?,
-        _ => bail!("Missing or invalid command passed: {}", command),
+        otherwise => sql_query_command(database_path, otherwise)?,
+        // _ => bail!("Missing or invalid command passed: {}", command),
     }
 
     Ok(())
@@ -73,6 +74,15 @@ fn tables_command(database_path: impl AsRef<Path>) -> io::Result<()> {
             // eprintln!("SCHEMA {res:?}");
         }
     }
+
+    Ok(())
+}
+fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) -> io::Result<()> {
+    // TODO: Proper query parsing
+    let split_query = query.as_ref().split_whitespace();
+    eprintln!("SPLIT={split_query:?}");
+    let table_name = split_query.last().expect("Empty SQL query!");
+    eprintln!("TABLE_NAME={table_name}");
 
     Ok(())
 }
