@@ -30,6 +30,7 @@ pub fn read<R: io::Read>(r: &mut R) -> io::Result<Varint> {
 }
 pub fn value_of(Varint { a0, tail }: &Varint) -> u64 {
     let init = (*a0 & 0b0111_1111) as u64;
+    eprintln!("INIT={init}");
     tail.iter().fold(init, |acc, elt| {
         eprintln!("Starting with acc={acc}, elt={elt}");
         let shifted = acc << 8;
