@@ -65,6 +65,24 @@ pub enum RecordValue {
     TwosComplement8(u8),
     EncodedString(Vec<u8>),
 }
+fn lift_twos_complement_8(value: RecordValue) -> io::Result<u8> {
+    match value {
+        RecordValue::TwosComplement8(value) => Ok(value),
+        otherwise => Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("Received {otherwise:?} when expecting an encoded string"),
+        )),
+    }
+}
+fn lift_encoded_string(value: RecordValue) -> io::Result<Vec<u8>> {
+    match value {
+        RecordValue::EncodedString(s) => Ok(s),
+        otherwise => Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("Received {otherwise:?} when expecting an encoded string"),
+        )),
+    }
+}
 pub fn read_value<R: io::Read>(r: &mut R, serial_type: &Varint) -> io::Result<RecordValue> {
     const NULL_SERIAL_TYPE: u64 = 0;
     const EIGHT_BIT_SERIAL_TYPE: u64 = 1;
@@ -94,46 +112,87 @@ pub fn read_element<R: io::Read>(r: &mut R, serial_type: &Varint) -> io::Result<
     .map(RecordElement)
 }
 #[derive(Debug)]
-pub struct Column {
+pub struct RawColumn {
     pub cells: Vec<RecordValue>,
 }
-fn read_column<'s, R: io::Read>(
+fn read_raw_column<'s, R: io::Read>(
     r: &mut R,
     serial_types: impl Iterator<Item = &'s Varint>,
-) -> Column {
-    Column {
+) -> RawColumn {
+    RawColumn {
         cells: serial_types
             .map_while(|serial_type| read_value(r, serial_type).ok())
             .collect(),
     }
 }
-#[derive(Debug)]
-pub struct Record {
-    pub header: RecordHeader,
-    pub columns: Vec<Column>,
+pub trait FromRawColumn {
+    fn from_raw_column(column: RawColumn) -> io::Result<Self>
+    where
+        Self: Sized;
 }
-pub fn read<R: io::Read>(r: &mut R) -> io::Result<Record> {
+impl FromRawColumn for RawColumn {
+    #[inline(always)]
+    fn from_raw_column(column: RawColumn) -> io::Result<Self>
+    where
+        Self: Sized,
+    {
+        Ok(column)
+    }
+}
+#[derive(Debug)]
+pub struct Record<C> {
+    pub header: RecordHeader,
+    pub columns: Vec<C>,
+}
+pub fn read<R: io::Read, C: FromRawColumn>(r: &mut R) -> io::Result<Record<C>> {
     let RawRecord { header, data } = read_raw(r)?;
     let mut src = data.as_slice();
     let columns = core::iter::from_fn(|| {
-        let column = read_column(&mut src, header.serial_types.iter());
+        let column = read_raw_column(&mut src, header.serial_types.iter());
         if column.cells.is_empty() {
             eprintln!("Column cells empty");
             None
         } else {
-            Some(column)
+            FromRawColumn::from_raw_column(column).ok()
         }
     })
     .collect();
     Ok(Record { header, columns })
 }
 #[derive(Debug)]
-pub struct SchemaRow {
+pub struct SchemaColumn {
     pub r#type: Vec<u8>,
     pub name: Vec<u8>,
     pub table_name: Vec<u8>,
     pub rootpage: u8,
     pub sql: Vec<u8>,
+}
+impl FromRawColumn for SchemaColumn {
+    fn from_raw_column(column: RawColumn) -> io::Result<Self>
+    where
+        Self: Sized,
+    {
+        let RawColumn { cells } = column;
+        let mut cells = cells.into_iter();
+        let mut next = || {
+            cells.next().ok_or(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "cells ran out when iterating for schema-column",
+            ))
+        };
+        let r#type = next().and_then(lift_encoded_string)?;
+        let name = next().and_then(lift_encoded_string)?;
+        let table_name = next().and_then(lift_encoded_string)?;
+        let rootpage = next().and_then(lift_twos_complement_8)?;
+        let sql = next().and_then(lift_encoded_string)?;
+        Ok(SchemaColumn {
+            r#type,
+            name,
+            table_name,
+            rootpage,
+            sql,
+        })
+    }
 }
 fn read_encoded_string<R: io::Read>(r: &mut R, serial_type: &Varint) -> io::Result<Vec<u8>> {
     read_value(r, serial_type).and_then(|value| match value {

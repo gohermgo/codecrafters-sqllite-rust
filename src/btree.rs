@@ -2,7 +2,10 @@ use core::fmt;
 
 use std::error::Error;
 
-use crate::io;
+use crate::{
+    io,
+    record::{FromRawColumn, RawColumn, SchemaColumn},
+};
 use crate::{record, Record, RecordHeader, RecordValue};
 use crate::{varint, Varint};
 
@@ -213,7 +216,7 @@ pub fn read_cells<'p>(
         read_cell(&mut src, *r#type).ok()
     })
 }
-pub fn parse_cell(cell: BTreeCell) -> io::Result<Record> {
+pub fn parse_cell<C: FromRawColumn>(cell: BTreeCell) -> io::Result<Record<C>> {
     match cell {
         BTreeCell::LeafTable(BTreeLeafTableCell {
             initial_payload, ..
@@ -294,10 +297,19 @@ fn read_encoded_string<R: io::Read>(r: &mut R, serial_type: &Varint) -> io::Resu
         )),
     })
 }
-pub fn read_schema(Record { header, columns }: Record) -> io::Result<Schema> {
+pub fn read_schema(
+    Record { header, columns }: Record<RawColumn>,
+) -> io::Result<Record<SchemaColumn>> {
     eprintln!("\n\nREAD SCHEMA");
+    Ok(Record {
+        header,
+        columns: columns
+            .into_iter()
+            .filter_map(|elt| SchemaColumn::from_raw_column(elt).ok())
+            .collect(),
+    })
     // let type =
-    todo!()
+    // todo!()
     // let mut src = data.as_slice();
 
     // let type_varint = &header.serial_types[0];
