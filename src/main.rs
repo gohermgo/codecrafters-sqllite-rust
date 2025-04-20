@@ -106,6 +106,9 @@ fn tables_command(database_path: impl AsRef<Path>) -> io::Result<()> {
     Ok(())
 }
 fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) -> io::Result<()> {
+    let mut buf = vec![];
+    io::Read::read_to_end(&mut fs::File::open(database_path.as_ref())?, &mut buf)?;
+    eprintln!("READ FILE={}", buf.len());
     // TODO: Proper query parsing
     let split_query = query.as_ref().split_whitespace();
     eprintln!("SPLIT={split_query:?}");
