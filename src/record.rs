@@ -103,7 +103,7 @@ fn read_column<'s, R: io::Read>(
 ) -> Column {
     Column {
         cells: serial_types
-            .filter_map(|serial_type| read_value(r, serial_type).ok())
+            .map_while(|serial_type| read_value(r, serial_type).ok())
             .collect(),
     }
 }
