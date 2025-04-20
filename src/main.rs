@@ -63,7 +63,11 @@ fn tables_command(database_path: impl AsRef<Path>) -> io::Result<()> {
         ) {
             let rec = btree::parse_cell::<record::SchemaColumn>(cell);
             if let Ok(Record { columns, .. }) = rec {
-                columns.iter().for_each(record::pretty_print_schema_column);
+                columns
+                    .iter()
+                    .for_each(|record::SchemaColumn { name, .. }| {
+                        println!("{}", String::from_utf8_lossy(name))
+                    });
             }
             // let res = rec.and_then(btree::read_schema);
             // eprintln!("SCHEMA {res:?}");

@@ -207,12 +207,3 @@ pub fn pretty_print_schema_column(
     eprintln!("ROOTPAGE={}", rootpage);
     eprintln!("SQL={}", String::from_utf8_lossy(sql));
 }
-fn read_encoded_string<R: io::Read>(r: &mut R, serial_type: &Varint) -> io::Result<Vec<u8>> {
-    read_value(r, serial_type).and_then(|value| match value {
-        RecordValue::EncodedString(s) => Ok(s),
-        otherwise => Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            format!("Received {otherwise:?} when expecting an encoded string"),
-        )),
-    })
-}
