@@ -3,6 +3,7 @@ use core::fmt;
 use std::error::Error;
 
 use crate::io;
+use crate::{record, RecordElement, RecordHeader, RecordValue};
 use crate::{varint, Varint};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -212,7 +213,6 @@ pub fn read_cells<'p>(
         read_cell(&mut src, *r#type).ok()
     })
 }
-use crate::{record, RecordElement, RecordHeader};
 #[derive(Debug)]
 pub struct RawRecord {
     pub header: RecordHeader,
@@ -297,8 +297,17 @@ pub struct Schema {
     pub r#type: Vec<u8>,
     pub name: Vec<u8>,
     pub table_name: Vec<u8>,
-    pub rootpage: Varint,
+    pub rootpage: u8,
     pub sql: Vec<u8>,
+}
+fn read_encoded_string<R: io::Read>(r: &mut R, serial_type: &Varint) -> io::Result<Vec<u8>> {
+    record::read_value(r, serial_type).and_then(|value| match value {
+        RecordValue::EncodedString(s) => Ok(s),
+        otherwise => Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("Received {otherwise:?} when expecting an encoded string"),
+        )),
+    })
 }
 pub fn read_schema(RawRecord { header, data }: RawRecord) -> io::Result<Schema> {
     eprintln!("\n\nREAD SCHEMA");
@@ -306,28 +315,34 @@ pub fn read_schema(RawRecord { header, data }: RawRecord) -> io::Result<Schema> 
 
     eprintln!("\nREAD TYPE (LEN={})", src.len());
     let type_varint = &header.serial_types[0];
-    let RecordElement(r#type) = record::read_element(&mut src, type_varint)?;
+    let r#type = read_encoded_string(&mut src, type_varint)?;
     eprintln!("TYPE={}", String::from_utf8_lossy(&r#type));
 
     eprintln!("\nREAD NAME (LEN={})", src.len());
     let name_varint = &header.serial_types[1];
-    let RecordElement(name) = record::read_element(&mut src, name_varint)?;
+    let name = read_encoded_string(&mut src, name_varint)?;
     eprintln!("NAME={}", String::from_utf8_lossy(&name));
 
     eprintln!("\nREAD TABLE_NAME (LEN={})", src.len());
     let table_name_varint = &header.serial_types[2];
-    let RecordElement(table_name) = record::read_element(&mut src, table_name_varint)?;
+    let table_name = read_encoded_string(&mut src, table_name_varint)?;
     eprintln!("TABLE_NAME={}", String::from_utf8_lossy(&table_name));
 
     eprintln!("\nREAD ROOTPAGE");
-    let rootpage = varint::read(&mut src)?;
-    // let rootpage_varint = &header.serial_types[3];
-    // let RecordElement(rootpage) = record::read_element(&mut src, rootpage_varint)?;
-    eprintln!("ROOTPAGE={}", varint::value_of(&rootpage));
+    // let rootpage = varint::read(&mut src)?;
+    let rootpage_varint = &header.serial_types[3];
+    let RecordValue::TwosComplement8(rootpage) = record::read_value(&mut src, rootpage_varint)?
+    else {
+        return Err(io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "Ill formed table_name",
+        ));
+    };
+    eprintln!("ROOTPAGE={rootpage}");
 
     eprintln!("\nREAD SQL (LEN={})", src.len());
     let sql_varint = &header.serial_types[4];
-    let RecordElement(sql) = record::read_element(&mut src, sql_varint)?;
+    let sql = read_encoded_string(&mut src, sql_varint)?;
     eprintln!("SQL={}", String::from_utf8_lossy(&sql));
 
     eprintln!("\nSRC remainder={:?}", src);

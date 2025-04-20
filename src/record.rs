@@ -52,6 +52,31 @@ fn serial_type_size(serial_type: &Varint) -> usize {
     eprintln!("SIZE={size} FOR {serial_type:?}");
     size
 }
+#[derive(Debug)]
+pub enum RecordValue {
+    Null,
+    TwosComplement8(u8),
+    EncodedString(Vec<u8>),
+}
+pub fn read_value<R: io::Read>(r: &mut R, serial_type: &Varint) -> io::Result<RecordValue> {
+    const NULL_SERIAL_TYPE: u64 = 0;
+    const EIGHT_BIT_SERIAL_TYPE: u64 = 1;
+    match varint::value_of(serial_type) {
+        NULL_SERIAL_TYPE => Ok(RecordValue::Null),
+        EIGHT_BIT_SERIAL_TYPE => io::read_one(r).map(RecordValue::TwosComplement8),
+        serial_type_value if is_string_serial_type(serial_type_value) => {
+            let size = string_serial_type_size(serial_type_value);
+            eprintln!("Values is a string with size {size}");
+
+            io::read_exact_vec(r, size).map(RecordValue::EncodedString)
+        }
+        _ => todo!(),
+    }
+}
+#[derive(Debug)]
+pub struct RecordRow {
+    pub xs: Vec<RecordValue>,
+}
 pub fn read_element<R: io::Read>(r: &mut R, serial_type: &Varint) -> io::Result<RecordElement> {
     eprintln!("READ RECORD: {serial_type:?}");
     let size = serial_type_size(serial_type);

@@ -23,7 +23,7 @@ pub mod io;
 pub mod record;
 pub mod varint;
 
-pub use record::{RecordElement, RecordHeader};
+pub use record::{RecordElement, RecordHeader, RecordValue};
 pub use varint::Varint;
 
 fn main() -> Result<()> {
