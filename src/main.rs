@@ -106,10 +106,12 @@ fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) ->
     let split_query = query.as_ref().split_whitespace();
     eprintln!("SPLIT={split_query:?}");
     let table_name = split_query.last().expect("Empty SQL query!");
-    eprintln!("TABLE_NAME={table_name}");
+    eprintln!("INPUT TABLE_NAME={table_name}");
 
-    for record in read_records::<record::RawColumn>(database_path)? {
-        eprintln!("RECORD={record:?}");
+    for record in read_records::<record::SchemaColumn>(database_path)? {
+        record.columns.iter().for_each(|column| {
+            eprintln!("TABLE_NAME={}", String::from_utf8_lossy(&column.table_name))
+        })
     }
 
     Ok(())
