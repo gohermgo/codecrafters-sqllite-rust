@@ -116,6 +116,7 @@ pub fn read<R: io::Read>(r: &mut R) -> io::Result<Record> {
     let columns = core::iter::from_fn(|| {
         let column = read_column(&mut src, header.serial_types.iter());
         if column.cells.is_empty() {
+            eprintln!("Column cells empty");
             None
         } else {
             Some(column)
