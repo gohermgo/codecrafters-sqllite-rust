@@ -5,21 +5,33 @@ pub struct RecordHeader {
     pub size: Varint,
     pub serial_types: Vec<Varint>,
 }
+fn header_tail_size(size_varint: &Varint) -> usize {
+    varint::value_of(size_varint) as usize - varint::size_of(size_varint)
+}
 pub fn read_header<R: io::Read>(r: &mut R) -> io::Result<RecordHeader> {
     let size = varint::read(r)?;
-    let tail_size = varint::value_of(&size) as usize - varint::size_of(&size);
-    eprintln!("RECORD HEADER: SIZE={:?}; TAIL_SIZE={tail_size}", size);
-    let mut tail = vec![0; tail_size];
-    io::Read::read_exact(r, &mut tail)?;
-    let mut src = tail.as_slice();
-    let serial_types = core::iter::from_fn(|| {
-        let varint = varint::read(&mut src).ok();
-        eprintln!("VARINT={varint:?};SRC={src:?}");
-        varint
-    })
-    .collect();
 
-    Ok(RecordHeader { size, serial_types })
+    let mut tail = vec![0; header_tail_size(&size)];
+    io::Read::read_exact(r, &mut tail)?;
+
+    let mut src = tail.as_slice();
+
+    Ok(RecordHeader {
+        size,
+        serial_types: core::iter::from_fn(|| varint::read(&mut src).ok()).collect(),
+    })
+}
+#[derive(Debug)]
+pub struct RawRecord {
+    pub header: RecordHeader,
+    pub data: Vec<u8>,
+}
+fn read_raw<R: io::Read>(r: &mut R) -> io::Result<RawRecord> {
+    let header = read_header(r)?;
+    let mut data = vec![];
+    io::Read::read_to_end(r, &mut data)?;
+    eprintln!("RECORD_DATA={}", String::from_utf8_lossy(&data));
+    Ok(RawRecord { header, data })
 }
 #[derive(Debug)]
 pub struct RecordElement(pub Vec<u8>);
@@ -37,15 +49,10 @@ fn serial_type_size(serial_type: &Varint) -> usize {
         // Value is a null
         NULL_SERIAL_TYPE => 0,
         // Value is an 8-bit twos-complement integer
-        EIGHT_BIT_SERIAL_TYPE => {
-            eprintln!("Value is a 8-bit twos-complement integer");
-            1
-        }
+        EIGHT_BIT_SERIAL_TYPE => 1,
         // Value is a string
         serial_type_value if is_string_serial_type(serial_type_value) => {
-            let size = string_serial_type_size(serial_type_value);
-            eprintln!("Values is a string with size {size}");
-            size
+            string_serial_type_size(serial_type_value)
         }
         _ => todo!(),
     };
@@ -65,10 +72,8 @@ pub fn read_value<R: io::Read>(r: &mut R, serial_type: &Varint) -> io::Result<Re
         NULL_SERIAL_TYPE => Ok(RecordValue::Null),
         EIGHT_BIT_SERIAL_TYPE => io::read_one(r).map(RecordValue::TwosComplement8),
         serial_type_value if is_string_serial_type(serial_type_value) => {
-            let size = string_serial_type_size(serial_type_value);
-            eprintln!("Values is a string with size {size}");
-
-            io::read_exact_vec(r, size).map(RecordValue::EncodedString)
+            io::read_exact_vec(r, string_serial_type_size(serial_type_value))
+                .map(RecordValue::EncodedString)
         }
         _ => todo!(),
     }
@@ -78,7 +83,6 @@ pub struct RecordRow {
     pub xs: Vec<RecordValue>,
 }
 pub fn read_element<R: io::Read>(r: &mut R, serial_type: &Varint) -> io::Result<RecordElement> {
-    eprintln!("READ RECORD: {serial_type:?}");
     let size = serial_type_size(serial_type);
     if size > 0 {
         io::read_exact_vec(r, size)
@@ -86,4 +90,54 @@ pub fn read_element<R: io::Read>(r: &mut R, serial_type: &Varint) -> io::Result<
         Ok(vec![])
     }
     .map(RecordElement)
+}
+#[derive(Debug)]
+pub struct Column {
+    pub cells: Vec<RecordValue>,
+}
+fn read_column<'s, R: io::Read>(
+    r: &mut R,
+    serial_types: impl Iterator<Item = &'s Varint>,
+) -> Column {
+    Column {
+        cells: serial_types
+            .filter_map(|serial_type| read_value(r, serial_type).ok())
+            .collect(),
+    }
+}
+#[derive(Debug)]
+pub struct Record {
+    pub header: RecordHeader,
+    pub columns: Vec<Column>,
+}
+pub fn read<R: io::Read>(r: &mut R) -> io::Result<Record> {
+    let RawRecord { header, data } = read_raw(r)?;
+    let mut src = data.as_slice();
+    let columns = core::iter::from_fn(|| {
+        let column = read_column(&mut src, header.serial_types.iter());
+        if column.cells.is_empty() {
+            None
+        } else {
+            Some(column)
+        }
+    })
+    .collect();
+    Ok(Record { header, columns })
+}
+#[derive(Debug)]
+pub struct SchemaRow {
+    pub r#type: Vec<u8>,
+    pub name: Vec<u8>,
+    pub table_name: Vec<u8>,
+    pub rootpage: u8,
+    pub sql: Vec<u8>,
+}
+fn read_encoded_string<R: io::Read>(r: &mut R, serial_type: &Varint) -> io::Result<Vec<u8>> {
+    read_value(r, serial_type).and_then(|value| match value {
+        RecordValue::EncodedString(s) => Ok(s),
+        otherwise => Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("Received {otherwise:?} when expecting an encoded string"),
+        )),
+    })
 }

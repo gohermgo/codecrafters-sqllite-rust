@@ -3,7 +3,7 @@ use core::fmt;
 use std::error::Error;
 
 use crate::io;
-use crate::{record, RecordElement, RecordHeader, RecordValue};
+use crate::{record, Record, RecordHeader, RecordValue};
 use crate::{varint, Varint};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -213,26 +213,11 @@ pub fn read_cells<'p>(
         read_cell(&mut src, *r#type).ok()
     })
 }
-#[derive(Debug)]
-pub struct RawRecord {
-    pub header: RecordHeader,
-    pub data: Vec<u8>,
-}
-fn parse_leaf_table_cell(
-    BTreeLeafTableCell {
-        initial_payload, ..
-    }: BTreeLeafTableCell,
-) -> io::Result<RawRecord> {
-    let mut src = initial_payload.as_slice();
-    let header = record::read_header(&mut src)?;
-    let mut data = vec![];
-    io::Read::read_to_end(&mut src, &mut data)?;
-    eprintln!("RECORD_DATA={}", String::from_utf8_lossy(&data));
-    Ok(RawRecord { header, data })
-}
-pub fn parse_cell(cell: BTreeCell) -> io::Result<RawRecord> {
+pub fn parse_cell(cell: BTreeCell) -> io::Result<Record> {
     match cell {
-        BTreeCell::LeafTable(cell) => parse_leaf_table_cell(cell),
+        BTreeCell::LeafTable(BTreeLeafTableCell {
+            initial_payload, ..
+        }) => record::read(&mut initial_payload.as_slice()),
     }
 }
 
@@ -285,12 +270,12 @@ pub struct TableBTreeInteriorCell {
     pub page_number: u32,
 }
 
-#[derive(Debug)]
-pub struct Record {
-    pub header: RecordHeader,
-    // pub elt: RecordElement,
-    pub tail: Vec<u8>,
-}
+// #[derive(Debug)]
+// pub struct Record {
+//     pub header: RecordHeader,
+//     // pub elt: RecordElement,
+//     pub tail: Vec<u8>,
+// }
 #[derive(Debug)]
 pub struct Schema {
     pub size: Varint,
@@ -309,62 +294,64 @@ fn read_encoded_string<R: io::Read>(r: &mut R, serial_type: &Varint) -> io::Resu
         )),
     })
 }
-pub fn read_schema(RawRecord { header, data }: RawRecord) -> io::Result<Schema> {
+pub fn read_schema(Record { header, columns }: Record) -> io::Result<Schema> {
     eprintln!("\n\nREAD SCHEMA");
-    let mut src = data.as_slice();
+    // let type =
+    todo!()
+    // let mut src = data.as_slice();
 
-    let type_varint = &header.serial_types[0];
-    let r#type = read_encoded_string(&mut src, type_varint)?;
-    eprintln!("\nTYPE={}", String::from_utf8_lossy(&r#type));
+    // let type_varint = &header.serial_types[0];
+    // let r#type = read_encoded_string(&mut src, type_varint)?;
+    // eprintln!("\nTYPE={}", String::from_utf8_lossy(&r#type));
 
-    let name_varint = &header.serial_types[1];
-    let name = read_encoded_string(&mut src, name_varint)?;
-    eprintln!("\nNAME={}", String::from_utf8_lossy(&name));
+    // let name_varint = &header.serial_types[1];
+    // let name = read_encoded_string(&mut src, name_varint)?;
+    // eprintln!("\nNAME={}", String::from_utf8_lossy(&name));
 
-    let table_name_varint = &header.serial_types[2];
-    let table_name = read_encoded_string(&mut src, table_name_varint)?;
-    eprintln!("\nTABLE_NAME={}", String::from_utf8_lossy(&table_name));
+    // let table_name_varint = &header.serial_types[2];
+    // let table_name = read_encoded_string(&mut src, table_name_varint)?;
+    // eprintln!("\nTABLE_NAME={}", String::from_utf8_lossy(&table_name));
 
-    let rootpage_varint = &header.serial_types[3];
-    let RecordValue::TwosComplement8(rootpage) = record::read_value(&mut src, rootpage_varint)?
-    else {
-        return Err(io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            "Ill formed table_name",
-        ));
-    };
-    eprintln!("\nROOTPAGE={rootpage}");
+    // let rootpage_varint = &header.serial_types[3];
+    // let RecordValue::TwosComplement8(rootpage) = record::read_value(&mut src, rootpage_varint)?
+    // else {
+    //     return Err(io::Error::new(
+    //         std::io::ErrorKind::InvalidData,
+    //         "Ill formed table_name",
+    //     ));
+    // };
+    // eprintln!("\nROOTPAGE={rootpage}");
 
-    let sql_varint = &header.serial_types[4];
-    let sql = read_encoded_string(&mut src, sql_varint)?;
+    // let sql_varint = &header.serial_types[4];
+    // let sql = read_encoded_string(&mut src, sql_varint)?;
 
-    eprintln!("\nSQL={}", String::from_utf8_lossy(&sql));
+    // eprintln!("\nSQL={}", String::from_utf8_lossy(&sql));
 
-    eprintln!("\nSRC remainder={:?}", src);
+    // eprintln!("\nSRC remainder={:?}", src);
 
-    Ok(Schema {
-        size: header.size,
-        r#type,
-        name,
-        table_name,
-        rootpage,
-        sql,
-    })
+    // Ok(Schema {
+    //     size: header.size,
+    //     r#type,
+    //     name,
+    //     table_name,
+    //     rootpage,
+    //     sql,
+    // })
 }
-pub fn read_record<R: io::Read>(r: &mut R) -> io::Result<Record> {
-    let header = record::read_header(r)?;
-    eprintln!("RECORD SIZE: {:?}", varint::value_of(&header.size));
-    for (idx, t) in header.serial_types.iter().enumerate() {
-        eprintln!("RECORD TYPE: {idx} -> {}", varint::value_of(t));
-        let elt = record::read_element(r, t)?;
-        eprintln!("TABLE NAME: {}", String::from_utf8_lossy(&elt.0));
-    }
-    // eprintln!("RECORD TYPE: {:?}", calculate_varint(&header.serial_type));
+// pub fn read_record<R: io::Read>(r: &mut R) -> io::Result<Record> {
+//     let header = record::read_header(r)?;
+//     eprintln!("RECORD SIZE: {:?}", varint::value_of(&header.size));
+//     for (idx, t) in header.serial_types.iter().enumerate() {
+//         eprintln!("RECORD TYPE: {idx} -> {}", varint::value_of(t));
+//         let elt = record::read_element(r, t)?;
+//         eprintln!("TABLE NAME: {}", String::from_utf8_lossy(&elt.0));
+//     }
+//     // eprintln!("RECORD TYPE: {:?}", calculate_varint(&header.serial_type));
 
-    let mut tail = vec![];
-    io::Read::read_to_end(r, &mut tail)?;
+//     let mut tail = vec![];
+//     io::Read::read_to_end(r, &mut tail)?;
 
-    eprintln!("TABLE DATA: {}", String::from_utf8_lossy(&tail));
+//     eprintln!("TABLE DATA: {}", String::from_utf8_lossy(&tail));
 
-    Ok(Record { header, tail })
-}
+//     Ok(Record { header, tail })
+// }

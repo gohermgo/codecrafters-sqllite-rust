@@ -23,7 +23,7 @@ pub mod io;
 pub mod record;
 pub mod varint;
 
-pub use record::{RecordElement, RecordHeader, RecordValue};
+pub use record::{Record, RecordElement, RecordHeader, RecordValue};
 pub use varint::Varint;
 
 fn main() -> Result<()> {
@@ -63,8 +63,8 @@ fn tables_command(database_path: impl AsRef<Path>) -> io::Result<()> {
         ) {
             let rec = btree::parse_cell(cell);
             eprintln!("REC {rec:X?}");
-            let res = rec.and_then(btree::read_schema);
-            eprintln!("SCHEMA {res:?}");
+            // let res = rec.and_then(btree::read_schema);
+            // eprintln!("SCHEMA {res:?}");
         }
     }
 
