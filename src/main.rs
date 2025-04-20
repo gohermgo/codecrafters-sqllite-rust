@@ -62,7 +62,6 @@ fn tables_command(database_path: impl AsRef<Path>) -> io::Result<()> {
             header.page_size as usize,
         ) {
             let rec = btree::parse_cell::<record::SchemaColumn>(cell);
-            eprintln!("REC {rec:X?}");
             if let Ok(Record { columns, .. }) = rec {
                 columns.iter().for_each(record::pretty_print_schema_column);
             }

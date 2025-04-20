@@ -205,13 +205,9 @@ pub fn read_cells<'p>(
     page_size: usize,
 ) -> impl Iterator<Item = BTreeCell> + 'p {
     let header_size = page_size - content.len();
-    // eprintln!("Calculated header size as {header_size}");
     let content_offset = header_size + initial_offset;
-    // eprintln!("Calculated offset as {content_offset}");
     cells.iter().filter_map(move |BTreeCellPointer(offset)| {
-        // eprintln!("Reading cell from content with length {}", content.len());
         let adjusted_offset = *offset as usize - content_offset;
-        // eprintln!("Adjusted offset from {offset} to {adjusted_offset}");
         let mut src = &content[adjusted_offset..];
         read_cell(&mut src, *r#type).ok()
     })
@@ -242,14 +238,11 @@ pub struct BTreeLeafTableCell {
 fn read_leaf_table_cell<R: io::Read>(r: &mut R) -> io::Result<BTreeLeafTableCell> {
     let total_payload_bytes = varint::read(r)?;
     let calculated_total_payload_bytes = varint::value_of(&total_payload_bytes);
-    // eprintln!("total payload bytes calculated as {calculated_total_payload_bytes}");
     let rowid = varint::read(r)?;
 
     let mut initial_payload = vec![0; calculated_total_payload_bytes as usize];
     io::Read::read_exact(r, &mut initial_payload)?;
-    eprintln!("LEN={}", initial_payload.len(),);
-    eprintln!("BYTES={:X?}", &initial_payload);
-    eprintln!("STR={}", String::from_utf8_lossy(&initial_payload));
+
     Ok(BTreeLeafTableCell {
         total_payload_bytes,
         rowid,
