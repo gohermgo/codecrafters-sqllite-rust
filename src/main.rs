@@ -26,6 +26,8 @@ pub mod varint;
 pub use record::{Record, RecordElement, RecordHeader, RecordValue};
 pub use varint::Varint;
 
+use crate::btree::BTreeCell;
+
 fn main() -> Result<()> {
     let SqliteArgs {
         database_path,
@@ -47,6 +49,28 @@ fn db_info_command(database_path: impl AsRef<Path>) -> io::Result<()> {
     let number_of_tables = database.content.count();
     println!("number of tables: {number_of_tables}");
     Ok(())
+}
+fn read_cells(database_path: impl AsRef<Path>) -> io::Result<impl Iterator<Item = BTreeCell>> {
+    fs::File::open(database_path).and_then(database::read).map(
+        |database::DatabaseFileContent { header, content }| {
+            let header_size = core::mem::size_of_val(&header);
+            let page_size = header.page_size as usize;
+            content
+                .filter_map(|database::DatabaseTable(content)| {
+                    btree::read_page(&mut content.as_slice()).ok()
+                })
+                .flat_map(move |page| {
+                    let v: Vec<BTreeCell> =
+                        btree::read_cells(&page, header_size, page_size).collect();
+                    v.into_iter()
+                })
+        },
+    )
+}
+fn read_records<C: record::FromRawColumn>(
+    database_path: impl AsRef<Path>,
+) -> io::Result<impl Iterator<Item = record::Record<C>>> {
+    read_cells(database_path).map(|cells| cells.filter_map(|cell| btree::parse_cell(cell).ok()))
 }
 fn tables_command(database_path: impl AsRef<Path>) -> io::Result<()> {
     let database::DatabaseFileContent { header, content } =
@@ -83,6 +107,10 @@ fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) ->
     eprintln!("SPLIT={split_query:?}");
     let table_name = split_query.last().expect("Empty SQL query!");
     eprintln!("TABLE_NAME={table_name}");
+
+    for record in read_records::<record::RawColumn>(database_path)? {
+        eprintln!("RECORD={record:?}");
+    }
 
     Ok(())
 }
