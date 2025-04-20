@@ -29,6 +29,10 @@ pub use varint::Varint;
 use crate::btree::BTreeCell;
 
 fn main() -> Result<()> {
+    let dir = std::env::current_dir().and_then(fs::read_dir)?;
+    for elt in dir {
+        eprintln!("ENTRY={elt:?}");
+    }
     let SqliteArgs {
         database_path,
         command,
