@@ -343,6 +343,7 @@ pub fn read_schema(RawRecord { header, data }: RawRecord) -> io::Result<Schema> 
     eprintln!("\nREAD SQL (LEN={})", src.len());
     let sql_varint = &header.serial_types[4];
     let string_size = record::string_serial_type_size(varint::value_of(sql_varint));
+    eprintln!("SQL_SIZE_VARINT={sql_varint:?}");
     eprintln!("SQL_SIZE_CALCULATED={string_size}");
     // let sql = read_encoded_string(&mut src, sql_varint)?;
     let mut sql = vec![];
