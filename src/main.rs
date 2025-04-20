@@ -63,6 +63,9 @@ fn tables_command(database_path: impl AsRef<Path>) -> io::Result<()> {
         ) {
             let rec = btree::parse_cell::<record::SchemaColumn>(cell);
             eprintln!("REC {rec:X?}");
+            if let Ok(Record { columns, .. }) = rec {
+                columns.iter().for_each(record::pretty_print_schema_column);
+            }
             // let res = rec.and_then(btree::read_schema);
             // eprintln!("SCHEMA {res:?}");
         }

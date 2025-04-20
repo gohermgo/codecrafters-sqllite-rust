@@ -194,6 +194,21 @@ impl FromRawColumn for SchemaColumn {
         })
     }
 }
+pub fn pretty_print_schema_column(
+    SchemaColumn {
+        r#type,
+        name,
+        table_name,
+        rootpage,
+        sql,
+    }: &SchemaColumn,
+) {
+    eprintln!("TYPE={}", String::from_utf8_lossy(r#type));
+    eprintln!("NAME={}", String::from_utf8_lossy(name));
+    eprintln!("TABLE_NAME={}", String::from_utf8_lossy(table_name));
+    eprintln!("ROOTPAGE={}", rootpage);
+    eprintln!("SQL={}", String::from_utf8_lossy(sql));
+}
 fn read_encoded_string<R: io::Read>(r: &mut R, serial_type: &Varint) -> io::Result<Vec<u8>> {
     read_value(r, serial_type).and_then(|value| match value {
         RecordValue::EncodedString(s) => Ok(s),
