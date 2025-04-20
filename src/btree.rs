@@ -313,23 +313,18 @@ pub fn read_schema(RawRecord { header, data }: RawRecord) -> io::Result<Schema> 
     eprintln!("\n\nREAD SCHEMA");
     let mut src = data.as_slice();
 
-    eprintln!("\nREAD TYPE (LEN={})", src.len());
     let type_varint = &header.serial_types[0];
     let r#type = read_encoded_string(&mut src, type_varint)?;
-    eprintln!("TYPE={}", String::from_utf8_lossy(&r#type));
+    eprintln!("\nTYPE={}", String::from_utf8_lossy(&r#type));
 
-    eprintln!("\nREAD NAME (LEN={})", src.len());
     let name_varint = &header.serial_types[1];
     let name = read_encoded_string(&mut src, name_varint)?;
-    eprintln!("NAME={}", String::from_utf8_lossy(&name));
+    eprintln!("\nNAME={}", String::from_utf8_lossy(&name));
 
-    eprintln!("\nREAD TABLE_NAME (LEN={})", src.len());
     let table_name_varint = &header.serial_types[2];
     let table_name = read_encoded_string(&mut src, table_name_varint)?;
-    eprintln!("TABLE_NAME={}", String::from_utf8_lossy(&table_name));
+    eprintln!("\nTABLE_NAME={}", String::from_utf8_lossy(&table_name));
 
-    eprintln!("\nREAD ROOTPAGE");
-    // let rootpage = varint::read(&mut src)?;
     let rootpage_varint = &header.serial_types[3];
     let RecordValue::TwosComplement8(rootpage) = record::read_value(&mut src, rootpage_varint)?
     else {
@@ -338,19 +333,12 @@ pub fn read_schema(RawRecord { header, data }: RawRecord) -> io::Result<Schema> 
             "Ill formed table_name",
         ));
     };
-    eprintln!("ROOTPAGE={rootpage}");
+    eprintln!("\nROOTPAGE={rootpage}");
 
-    eprintln!("\nREAD SQL (LEN={})", src.len());
     let sql_varint = &header.serial_types[4];
-    let string_size = record::string_serial_type_size(varint::value_of(sql_varint));
-    eprintln!("SQL_SIZE_VARINT={sql_varint:?}");
-    eprintln!("SQL_SIZE_CALCULATED={string_size}");
-    // let sql = read_encoded_string(&mut src, sql_varint)?;
-    let mut sql = vec![];
-    io::Read::read_to_end(&mut src, &mut sql)?;
+    let sql = read_encoded_string(&mut src, sql_varint)?;
 
-    eprintln!("SQL_SIZE_ACTUAL={}", sql.len());
-    eprintln!("SQL={}", String::from_utf8_lossy(&sql));
+    eprintln!("\nSQL={}", String::from_utf8_lossy(&sql));
 
     eprintln!("\nSRC remainder={:?}", src);
 

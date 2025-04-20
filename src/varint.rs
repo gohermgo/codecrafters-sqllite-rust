@@ -34,21 +34,6 @@ pub fn read<R: io::Read>(r: &mut R) -> io::Result<Varint> {
 
     Ok(Varint { a0, tail })
 }
-fn fold_varint(Varint { a0, tail }: &Varint) -> u64 {
-    let count = tail.len() + 1;
-    let xs = core::iter::once(a0).chain(tail.iter());
-    let val = xs.enumerate().fold(0, |acc, (idx, elt)| {
-        let elt = if idx < count - 1 {
-            *elt ^ 0b1000_0000
-        } else {
-            *elt
-        } as u64;
-        let elt = elt << (7 * (count - idx - 1));
-        elt | acc
-    });
-    eprintln!("FOLDED={val}");
-    val
-}
 pub fn value_of(varint @ Varint { a0, tail }: &Varint) -> u64 {
     eprintln!("FOLDING;A0={a0};TAIL={tail:X?}");
     let count = len(varint);
@@ -61,17 +46,6 @@ pub fn value_of(varint @ Varint { a0, tail }: &Varint) -> u64 {
         let elt = elt << (7 * (count - idx - 1));
         elt | acc
     })
-    // fold_varint(varint);
-    // let init = (*a0 & 0b0111_1111) as u64;
-    // eprintln!("INIT={init}");
-    // tail.iter().fold(init, |acc, elt| {
-    //     eprintln!("Starting with acc={acc}, elt={elt}");
-    //     let shifted = acc << 8;
-    //     let current = (*elt & 0b0111_1111) as u64;
-    //     let res = shifted | current;
-    //     eprintln!("SHIFTED={shifted}, CURRENT={current}, RES={res}");
-    //     res
-    // })
 }
 pub fn size_of(Varint { a0, tail }: &Varint) -> usize {
     core::mem::size_of_val(a0) + tail.len()
