@@ -93,11 +93,7 @@ fn parse_root_cells(
                 })
         })
 }
-pub struct Database {
-    pub schema: Vec<SchemaCell>,
-    pub cells: Vec<DatabaseCell<btree::BTreeCell>>,
-}
-pub type SchemaCell = DatabaseCell<btree::SchemaRecordCell>;
+#[derive(Debug)]
 pub struct PageCells {
     pub schema_cells: Vec<record::SchemaRecord>,
     pub btree_cells: Vec<Vec<btree::BTreeCell>>,
@@ -115,7 +111,6 @@ pub fn cells(Pages { root_page, tail }: &Pages<btree::BTreePage>) -> PageCells {
             .collect(),
     }
 }
-type VecIntoIter<T> = std::vec::IntoIter<T>;
 impl IntoIterator for PageCells {
     type IntoIter = core::iter::Zip<
         std::vec::IntoIter<record::SchemaRecord>,

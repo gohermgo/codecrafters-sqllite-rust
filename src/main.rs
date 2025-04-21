@@ -74,45 +74,50 @@ fn db_info_command(database_path: impl AsRef<Path>) -> io::Result<()> {
 //         .map(|cells| cells.filter_map(|cell| database::btree::parse_cell(cell).ok()))
 // }
 fn tables_command(database_path: impl AsRef<Path>) -> io::Result<()> {
-    let database::DatabaseFileContent { header, content } =
-        fs::File::open(database_path).and_then(database::read)?;
-    let btree_pages = content.filter_map(|database::DatabaseTable(content)| {
-        database::btree::read_page(&mut content.as_slice()).ok()
-    });
-
-    for page in btree_pages {
-        // eprintln!("Read btree-page {page:?}");
-        for cell in database::btree::read_cells(&page, core::mem::size_of_val(&header)) {
-            let rec = database::btree::parse_cell::<record::SchemaColumn>(cell);
-            if let Ok(database::btree::RecordCell {
-                rowid,
-                record: Record { columns, .. },
-            }) = rec
-            {
-                eprintln!("ROWID={}", varint::value_of(&rowid));
-                columns
-                    .iter()
-                    .for_each(|record::SchemaColumn { table_name, .. }| {
-                        println!("{}", String::from_utf8_lossy(table_name))
-                    });
-            }
+    if let Ok(database::Database { page_cells, .. }) = database::open(database_path) {
+        for (record, _) in page_cells {
+            println!("{}", String::from_utf8_lossy(&record.column.table_name));
         }
     }
+    // let database::DatabaseFileContent { header, content } =
+    //     fs::File::open(database_path).and_then(database::read)?;
+    // let btree_pages = content.filter_map(|database::DatabaseTable(content)| {
+    //     database::btree::read_page(&mut content.as_slice()).ok()
+    // });
+
+    // for page in btree_pages {
+    //     // eprintln!("Read btree-page {page:?}");
+    //     for cell in database::btree::read_cells(&page, core::mem::size_of_val(&header)) {
+    //         let rec = database::btree::parse_cell::<record::SchemaColumn>(cell);
+    //         if let Ok(database::btree::RecordCell {
+    //             rowid,
+    //             record: Record { columns, .. },
+    //         }) = rec
+    //         {
+    //             eprintln!("ROWID={}", varint::value_of(&rowid));
+    //             columns
+    //                 .iter()
+    //                 .for_each(|record::SchemaColumn { table_name, .. }| {
+    //                     println!("{}", String::from_utf8_lossy(table_name))
+    //                 });
+    //         }
+    //     }
+    // }
 
     Ok(())
 }
 fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) -> io::Result<()> {
-    let dbc = fs::File::open(database_path.as_ref())
-        .and_then(|mut file| database::read_database(&mut file));
-    let dbc = dbc.and_then(database::page::convert::<database::btree::BTreePage>);
+    // let dbc = fs::File::open(database_path.as_ref())
+    //     .and_then(|mut file| database::read_database(&mut file));
+    // let dbc = dbc.and_then(database::page::convert::<database::btree::BTreePage>);
     // TODO: Proper query parsing
     let split_query = query.as_ref().split_whitespace();
     eprintln!("SPLIT={split_query:?}");
     let table_name = split_query.last().expect("Empty SQL query!");
     eprintln!("INPUT TABLE_NAME={table_name}");
-    if let Ok(pages) = dbc {
-        let cells = database::page::cells(&pages);
-        for (record, page) in cells {
+    if let Ok(database::Database { page_cells, .. }) = database::open(database_path) {
+        // let cells = database::page::cells(&pages);
+        for (record, page) in page_cells {
             let name = String::from_utf8_lossy(&record.column.name);
             if name == table_name {
                 eprintln!("FOUND MATCH FOR TABLE {table_name}");

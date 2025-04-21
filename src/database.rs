@@ -1,7 +1,9 @@
 use core::ffi::c_char;
+use std::{fs, path::Path};
 
-pub mod btree;
-pub mod page;
+mod btree;
+mod page;
+pub use page::{PageCells, Pages};
 
 use crate::io;
 
@@ -181,4 +183,28 @@ pub fn read_with<T, R: io::Read + 'static>(
         });
         DatabaseFileContent { header, content }
     })
+}
+#[derive(Debug)]
+pub struct Database {
+    pub header: DatabaseHeader,
+    pub page_cells: PageCells,
+}
+pub fn open(database_path: impl AsRef<Path>) -> io::Result<Database> {
+    fs::File::open(database_path)
+        .and_then(|mut file| read_database(&mut file))
+        .and_then(|pages| page::convert::<btree::BTreePage>(pages))
+        .map(|pages| {
+            let page_cells = page::cells(&pages);
+            Database {
+                header: pages.root_page.database_header,
+                page_cells,
+            }
+        })
+    // fs::File::open(database_path).and_then(read).map(|DatabaseFileContent { header, content }| {
+    //     let content = content.filter_map(|DatabaseTable(content)| btree::read_page(&mut content.as_slice()).ok()).flat_map(|elt| btree::read_cells(elt, ));
+    // })
+    // let DatabaseFileContent { header, content } = fs::File::open(database_path).and_then(read)?;
+    // let btree_pages = content.filter_map(|database::DatabaseTable(content)| {
+    //     btree::read_page(&mut content.as_slice()).ok()
+    // });
 }
