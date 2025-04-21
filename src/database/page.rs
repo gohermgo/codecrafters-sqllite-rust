@@ -88,10 +88,11 @@ fn root_cells<'p>(
 pub fn cells<'p>(
     Pages { root_page, tail }: &'p Pages<btree::BTreePage>,
 ) -> impl Iterator<Item = PageContent<btree::BTreeCell>> + 'p {
-    root_cells(root_page).chain(tail.iter().enumerate().flat_map(|(page_index, page)| {
+    root_cells(root_page).chain(tail.iter().enumerate().flat_map(|(idx, page)| {
         btree::read_cells(page, 0, root_page.database_header.page_size as usize).map(move |cell| {
             PageContent {
-                page_index,
+                // Since it is not the root-page, we add one
+                page_index: idx + 1,
                 content: cell,
             }
         })
