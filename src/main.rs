@@ -113,8 +113,11 @@ fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) ->
     if let Ok(pages) = dbc {
         let cells = database::page::cells(&pages);
         for (record, page) in cells {
-            eprintln!("REC={record:?}");
-            eprintln!("PAGE={page:?}");
+            let name = String::from_utf8_lossy(&record.column.name);
+            if name == table_name {
+                eprintln!("REC={record:?}");
+                eprintln!("PAGE={page:?}");
+            }
         }
     }
     Ok(())
