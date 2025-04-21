@@ -115,8 +115,8 @@ fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) ->
         for (record, page) in cells {
             let name = String::from_utf8_lossy(&record.column.name);
             if name == table_name {
-                eprintln!("REC={record:?}");
-                eprintln!("PAGE={page:?}");
+                eprintln!("FOUND MATCH FOR TABLE {table_name}");
+                println!("{}", page.len())
             }
         }
     }
