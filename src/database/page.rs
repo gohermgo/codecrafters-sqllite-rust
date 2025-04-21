@@ -87,12 +87,7 @@ fn root_cells<'p>(
         .find_map(|(idx, elt)| elt.ne(&0).then_some(idx));
     eprintln!("ROOTPAGE_STR={:?}", String::from_utf8_lossy(&tail.content));
     eprintln!("FIRST NONZERO={nzi:?}");
-    btree::read_cells(
-        tail,
-        core::mem::size_of_val(database_header),
-        database_header.page_size as usize,
-    )
-    .map(|cell| PageContent {
+    btree::read_cells(tail, core::mem::size_of_val(database_header)).map(|cell| PageContent {
         page_index: 0,
         content: cell,
     })
@@ -101,7 +96,7 @@ pub fn cells<'p>(
     Pages { root_page, tail }: &'p Pages<btree::BTreePage>,
 ) -> impl Iterator<Item = PageContent<btree::BTreeCell>> + 'p {
     root_cells(root_page).chain(tail.iter().enumerate().flat_map(|(idx, page)| {
-        btree::read_cells(page, 0, root_page.database_header.page_size as usize).map(move |cell| {
+        btree::read_cells(page, 0).map(move |cell| {
             PageContent {
                 // Since it is not the root-page, we add one
                 page_index: idx + 1,

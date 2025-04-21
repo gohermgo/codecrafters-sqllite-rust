@@ -57,14 +57,13 @@ fn read_cells(database_path: impl AsRef<Path>) -> io::Result<impl Iterator<Item 
     fs::File::open(database_path).and_then(database::read).map(
         |database::DatabaseFileContent { header, content }| {
             let header_size = core::mem::size_of_val(&header);
-            let page_size = header.page_size as usize;
             content
                 .filter_map(|database::DatabaseTable(content)| {
                     database::btree::read_page(&mut content.as_slice()).ok()
                 })
                 .flat_map(move |page| {
                     let v: Vec<BTreeCell> =
-                        database::btree::read_cells(&page, header_size, page_size).collect();
+                        database::btree::read_cells(&page, header_size).collect();
                     v.into_iter()
                 })
         },
@@ -85,11 +84,7 @@ fn tables_command(database_path: impl AsRef<Path>) -> io::Result<()> {
 
     for page in btree_pages {
         // eprintln!("Read btree-page {page:?}");
-        for cell in database::btree::read_cells(
-            &page,
-            core::mem::size_of_val(&header),
-            header.page_size as usize,
-        ) {
+        for cell in database::btree::read_cells(&page, core::mem::size_of_val(&header)) {
             let rec = database::btree::parse_cell::<record::SchemaColumn>(cell);
             if let Ok(Record { columns, .. }) = rec {
                 columns

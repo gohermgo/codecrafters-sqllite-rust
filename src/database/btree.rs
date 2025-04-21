@@ -214,31 +214,13 @@ pub fn read_cells<'p>(
         ..
     }: &'p BTreePage,
     initial_offset: usize,
-    page_size: usize,
 ) -> impl Iterator<Item = BTreeCell> + 'p {
     let content_offset =
         size_of_page_header(header) + size_of_cell_pointer_array(cell_pointers) + initial_offset;
-    eprintln!("CONTENT_OFFSET={content_offset}");
-    // let header_size = page_size - content.len();
-    // let content_offset = header_size + initial_offset;
     cells.iter().filter_map(move |BTreeCellPointer(offset)| {
-        // let adjusted_offset = *offset as usize - content_offset;
         let adjusted_offset = *offset as usize - content_offset;
-        eprintln!("ADJUSTED_OFFSET={adjusted_offset}");
         let mut src = &content[adjusted_offset..];
-
-        let srclen = src.len();
-        let srcstr = String::from_utf8_lossy(src);
-
-        let full = content.get(*offset as usize..).map(String::from_utf8_lossy);
-        let res = read_cell(&mut src, *r#type).ok();
-        if res.is_none() {
-            eprintln!("ADJUSTED_OFFSET={adjusted_offset}");
-            eprintln!("CONTENT_OFFSET={content_offset}");
-            eprintln!("FULL={:?}", full);
-            eprintln!("SRC={};LEN={}", srcstr, srclen);
-        }
-        res
+        read_cell(&mut src, *r#type).ok()
     })
 }
 pub fn parse_cell<C: FromRawColumn>(cell: BTreeCell) -> io::Result<Record<C>> {
