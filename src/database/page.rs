@@ -64,24 +64,36 @@ pub fn convert<T: FromRawPage>(Pages { root_page, tail }: RawPages) -> io::Resul
             .collect(),
     })
 }
+#[derive(Debug)]
+pub struct PageContent<T> {
+    pub page_index: usize,
+    pub content: T,
+}
 fn root_cells<'p>(
     RootPage {
         database_header,
         tail,
     }: &'p RootPage<btree::BTreePage>,
-) -> impl Iterator<Item = btree::BTreeCell> + 'p {
+) -> impl Iterator<Item = PageContent<btree::BTreeCell>> + 'p {
     btree::read_cells(
         tail,
         core::mem::size_of_val(database_header),
         database_header.page_size as usize,
     )
+    .map(|cell| PageContent {
+        page_index: 0,
+        content: cell,
+    })
 }
 pub fn cells<'p>(
     Pages { root_page, tail }: &'p Pages<btree::BTreePage>,
-) -> impl Iterator<Item = btree::BTreeCell> + 'p {
-    root_cells(root_page).chain(
-        tail.iter().flat_map(|page| {
-            btree::read_cells(page, 0, root_page.database_header.page_size as usize)
-        }),
-    )
+) -> impl Iterator<Item = PageContent<btree::BTreeCell>> + 'p {
+    root_cells(root_page).chain(tail.iter().enumerate().flat_map(|(page_index, page)| {
+        btree::read_cells(page, 0, root_page.database_header.page_size as usize).map(move |cell| {
+            PageContent {
+                page_index,
+                content: cell,
+            }
+        })
+    }))
 }
