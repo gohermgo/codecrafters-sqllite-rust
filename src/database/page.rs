@@ -79,7 +79,8 @@ fn root_cells<'p>(
     }: &'p RootPage<btree::BTreePage>,
 ) -> impl Iterator<Item = PageContent<btree::BTreeCell>> + 'p {
     eprintln!("READING ROOT CELLS");
-    eprintln!("ROOTDATA={}", String::from_utf8_lossy(&tail.content));
+    eprintln!("ROOTPAGE_DATA={:?}", tail.content);
+    eprintln!("ROOTPAGE_STR={:?}", String::from_utf8_lossy(&tail.content));
     btree::read_cells(
         tail,
         core::mem::size_of_val(database_header),
