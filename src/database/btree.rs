@@ -151,7 +151,9 @@ fn read_cell_pointer_array<R: io::Read>(
                 eprintln!("Unexpected input slice {b:?}");
                 return None;
             };
-            Some(u16::from_be_bytes([hi, lo]))
+            let cp = u16::from_be_bytes([hi, lo]);
+            eprintln!("CELLPTR={cp}");
+            Some(cp)
         })
         .map(BTreeCellPointer)
         .collect();
