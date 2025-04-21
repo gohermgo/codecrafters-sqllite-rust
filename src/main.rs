@@ -82,6 +82,12 @@ fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) ->
                     .iter()
                     .filter_map(database::get_cell_content)
                     .inspect(|bytes| eprintln!("BYTES={bytes:X?}"))
+                    .inspect(|bytes| {
+                        let mut s = bytes.iter().as_slice();
+                        if let Ok(hd) = record::read_header(&mut s) {
+                            eprintln!("HEADER={hd:X?}");
+                        }
+                    })
                     .map(String::from_utf8_lossy)
                 {
                     eprintln!("CONTENT={str:?}")
