@@ -8,7 +8,7 @@ use crate::{
     io,
     record::{FromRawColumn, RawColumn, SchemaColumn},
 };
-use crate::{record, Record, RecordHeader, RecordValue};
+use crate::{record, Record, RecordValue};
 use crate::{varint, Varint};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -151,9 +151,7 @@ fn read_cell_pointer_array<R: io::Read>(
                 eprintln!("Unexpected input slice {b:?}");
                 return None;
             };
-            let cp = u16::from_be_bytes([hi, lo]);
-            // eprintln!("CELLPTR={cp}");
-            Some(cp)
+            Some(u16::from_be_bytes([hi, lo]))
         })
         .map(BTreeCellPointer)
         .collect();
