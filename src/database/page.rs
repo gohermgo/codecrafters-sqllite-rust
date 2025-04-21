@@ -11,8 +11,9 @@ pub trait FromRawPage {
 #[derive(Debug)]
 pub struct RawPage(pub Vec<u8>);
 fn read_raw_page<R: io::Read>(r: &mut R, page_size: usize) -> io::Result<RawPage> {
-    eprintln!("READING RAWPAGE WITH PAGE_SIZE={page_size}");
-    io::read_exact_vec(r, page_size).map(RawPage)
+    let raw = io::read_exact_vec(r, page_size).map(RawPage)?;
+    eprintln!("READ RAWPAGE WITH PAGE_SIZE={page_size}");
+    Ok(raw)
 }
 #[derive(Debug)]
 pub struct RootPage<T> {
