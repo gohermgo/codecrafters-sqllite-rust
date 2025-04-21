@@ -224,8 +224,11 @@ pub fn read_cells<'p>(
         eprintln!("SRCLEN={}", src.len());
         eprintln!("SRC={}", String::from_utf8_lossy(src));
         let full = content.get(*offset as usize..).map(String::from_utf8_lossy);
-        eprintln!("FULL={:?}", full);
-        read_cell(&mut src, *r#type).ok()
+        let res = read_cell(&mut src, *r#type).ok();
+        if res.is_none() {
+            eprintln!("FULL={:?}", full);
+        }
+        res
     })
 }
 pub fn parse_cell<C: FromRawColumn>(cell: BTreeCell) -> io::Result<Record<C>> {
