@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 
 use std::env;
 use std::fs;
@@ -24,8 +24,6 @@ pub mod varint;
 
 pub use record::{Record, RecordElement, RecordHeader, RecordValue};
 pub use varint::Varint;
-
-use database::btree::BTreeCell;
 
 fn main() -> Result<()> {
     let dir = std::env::current_dir().and_then(fs::read_dir)?;
@@ -53,22 +51,22 @@ fn db_info_command(database_path: impl AsRef<Path>) -> io::Result<()> {
     println!("number of tables: {number_of_tables}");
     Ok(())
 }
-fn read_cells(database_path: impl AsRef<Path>) -> io::Result<impl Iterator<Item = BTreeCell>> {
-    fs::File::open(database_path).and_then(database::read).map(
-        |database::DatabaseFileContent { header, content }| {
-            let header_size = core::mem::size_of_val(&header);
-            content
-                .filter_map(|database::DatabaseTable(content)| {
-                    database::btree::read_page(&mut content.as_slice()).ok()
-                })
-                .flat_map(move |page| {
-                    let v: Vec<BTreeCell> =
-                        database::btree::read_cells(&page, header_size).collect();
-                    v.into_iter()
-                })
-        },
-    )
-}
+// fn read_cells(database_path: impl AsRef<Path>) -> io::Result<impl Iterator<Item = BTreeCell>> {
+//     fs::File::open(database_path).and_then(database::read).map(
+//         |database::DatabaseFileContent { header, content }| {
+//             let header_size = core::mem::size_of_val(&header);
+//             content
+//                 .filter_map(|database::DatabaseTable(content)| {
+//                     database::btree::read_page(&mut content.as_slice()).ok()
+//                 })
+//                 .flat_map(move |page| {
+//                     let v: Vec<BTreeCell> =
+//                         database::btree::read_cells(&page, header_size).collect();
+//                     v.into_iter()
+//                 })
+//         },
+//     )
+// }
 // fn read_records<C: record::FromRawColumn>(
 //     database_path: impl AsRef<Path>,
 // ) -> io::Result<impl Iterator<Item = record::Record<C>>> {
@@ -108,12 +106,22 @@ fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) ->
         .and_then(|mut file| database::read_database(&mut file));
     let dbc = dbc.and_then(database::page::convert::<database::btree::BTreePage>);
     if let Ok(pages) = dbc {
-        for (idx, database::page::DatabasePage { content, .. }) in
-            database::page::cells(&pages).enumerate()
-        {
-            let parsed = database::btree::parse_cell::<record::SchemaColumn>(content);
-            eprintln!("CELL {idx}={parsed:?}");
+        let database::page::PageCells {
+            schema_cells,
+            btree_cells,
+        } = database::page::cells(&pages);
+        for (idx, schema) in schema_cells.iter().enumerate() {
+            eprintln!("[IDX: {idx}] SCHEMA={schema:?}");
         }
+        for (idx, cell) in btree_cells.iter().enumerate() {
+            eprintln!("[IDX: {idx}] CELL={cell:?}");
+        }
+        // for (idx, database::page::DatabaseCell { content, .. }) in
+        //     database::page::cells(&pages).enumerate()
+        // {
+        //     let parsed = database::btree::parse_cell::<record::SchemaColumn>(content);
+        //     eprintln!("CELL {idx}={parsed:?}");
+        // }
     }
     // eprintln!("READ DBC={dbc:?}");
     // TODO: Proper query parsing

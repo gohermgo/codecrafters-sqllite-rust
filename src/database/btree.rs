@@ -8,7 +8,7 @@ use crate::{
     io,
     record::{FromRawColumn, RawColumn, SchemaColumn},
 };
-use crate::{record, Record, RecordValue};
+use crate::{record, Record};
 use crate::{varint, Varint};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -285,6 +285,7 @@ pub struct RecordCell<C> {
     pub rowid: Varint,
     pub record: Record<C>,
 }
+pub type SchemaRecordCell = RecordCell<SchemaColumn>;
 #[repr(transparent)]
 pub struct TableBTreeInteriorCell {
     /// A big-endian number which is the left child pointer
@@ -299,15 +300,6 @@ pub struct Schema {
     pub table_name: Vec<u8>,
     pub rootpage: u8,
     pub sql: Vec<u8>,
-}
-fn read_encoded_string<R: io::Read>(r: &mut R, serial_type: &Varint) -> io::Result<Vec<u8>> {
-    record::read_value(r, serial_type).and_then(|value| match value {
-        RecordValue::EncodedString(s) => Ok(s),
-        otherwise => Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            format!("Received {otherwise:?} when expecting an encoded string"),
-        )),
-    })
 }
 pub fn read_schema(
     Record { header, columns }: Record<RawColumn>,
