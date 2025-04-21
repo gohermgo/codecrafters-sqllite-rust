@@ -88,14 +88,14 @@ fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) ->
                 eprintln!("FOUND MATCH FOR TABLE {table_name}");
                 println!("{}", page.len());
                 eprintln!("{:?}", page);
-                for rec in page
-                    .iter()
-                    .filter_map(database::get_cell_content)
+                let cell_content = page.iter().filter_map(database::get_cell_content);
+                let record_bytes = cell_content
                     .inspect(|bytes| eprintln!("BYTES={bytes:X?}"))
                     .filter_map(|mut bytes| {
                         let header = record::read_header(&mut bytes).ok()?;
                         Some(RecordBytes { header, bytes })
-                    })
+                    });
+                for rec in record_bytes
                     .inspect(|bytes| {
                         eprintln!("RECORD_BYTES={bytes:X?}");
                     })
