@@ -78,7 +78,11 @@ fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) ->
                 eprintln!("FOUND MATCH FOR TABLE {table_name}");
                 println!("{}", page.len());
                 eprintln!("{:?}", page);
-                for str in page.iter() {
+                for str in page
+                    .iter()
+                    .filter_map(database::get_cell_content)
+                    .map(String::from_utf8_lossy)
+                {
                     eprintln!("CONTENT={str:?}")
                 }
             }

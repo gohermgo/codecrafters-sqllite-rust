@@ -91,7 +91,7 @@ fn parse_root_cells(
 #[derive(Debug)]
 pub struct PageCells {
     pub schema_cells: Vec<record::SchemaRecord>,
-    pub btree_cells: Vec<Vec<btree::RecordCell<record::RawColumn>>>,
+    pub btree_cells: Vec<Vec<btree::BTreeCell>>,
 }
 pub fn cells(Pages { root_page, tail }: &Pages<btree::BTreePage>) -> PageCells {
     PageCells {
@@ -101,7 +101,6 @@ pub fn cells(Pages { root_page, tail }: &Pages<btree::BTreePage>) -> PageCells {
             .map(|page| {
                 btree::read_cells(page, 0)
                     .inspect(btree::print_cell_rowid)
-                    .map_while(|cell| btree::parse_cell(cell).ok())
                     .collect()
             })
             .collect(),
@@ -110,12 +109,9 @@ pub fn cells(Pages { root_page, tail }: &Pages<btree::BTreePage>) -> PageCells {
 impl IntoIterator for PageCells {
     type IntoIter = core::iter::Zip<
         std::vec::IntoIter<record::SchemaRecord>,
-        std::vec::IntoIter<Vec<btree::RecordCell<record::RawColumn>>>,
+        std::vec::IntoIter<Vec<btree::BTreeCell>>,
     >;
-    type Item = (
-        record::SchemaRecord,
-        Vec<btree::RecordCell<record::RawColumn>>,
-    );
+    type Item = (record::SchemaRecord, Vec<btree::BTreeCell>);
     fn into_iter(self) -> Self::IntoIter {
         self.schema_cells.into_iter().zip(self.btree_cells)
     }
