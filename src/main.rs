@@ -74,23 +74,38 @@ fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) ->
         // let cells = database::page::cells(&pages);
         for (record, page) in page_cells {
             let name = String::from_utf8_lossy(&record.column.name);
+            #[derive(Debug)]
+            struct RecordBytes<'a> {
+                pub header: RecordHeader,
+                pub bytes: &'a [u8],
+            }
+            #[derive(Debug)]
+            struct SerializedRecord {
+                pub header: RecordHeader,
+                pub column: record::RawColumn,
+            }
             if name == table_name {
                 eprintln!("FOUND MATCH FOR TABLE {table_name}");
                 println!("{}", page.len());
                 eprintln!("{:?}", page);
-                for str in page
+                for rec in page
                     .iter()
                     .filter_map(database::get_cell_content)
                     .inspect(|bytes| eprintln!("BYTES={bytes:X?}"))
-                    .inspect(|bytes| {
-                        let mut s = bytes.iter().as_slice();
-                        if let Ok(hd) = record::read_header(&mut s) {
-                            eprintln!("HEADER={hd:X?}");
-                        }
+                    .filter_map(|mut bytes| {
+                        let header = record::read_header(&mut bytes).ok()?;
+                        Some(RecordBytes { header, bytes })
                     })
-                    .map(String::from_utf8_lossy)
+                    .inspect(|bytes| {
+                        eprintln!("RECORD_BYTES={bytes:X?}");
+                    })
+                    .map(|RecordBytes { header, mut bytes }| {
+                        let serial_types = header.serial_types.iter();
+                        let column = record::read_raw_column(&mut bytes, serial_types);
+                        SerializedRecord { header, column }
+                    })
                 {
-                    eprintln!("CONTENT={str:?}")
+                    eprintln!("CONTENT={:?}", rec)
                 }
             }
         }

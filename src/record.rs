@@ -115,7 +115,7 @@ pub fn read_element<R: io::Read>(r: &mut R, serial_type: &Varint) -> io::Result<
 pub struct RawColumn {
     pub cells: Vec<RecordValue>,
 }
-fn read_raw_column<'s, R: io::Read>(
+pub fn read_raw_column<'s, R: io::Read>(
     r: &mut R,
     serial_types: impl Iterator<Item = &'s Varint>,
 ) -> RawColumn {
