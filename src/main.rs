@@ -99,6 +99,9 @@ fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) ->
                     .inspect(|bytes| {
                         eprintln!("RECORD_BYTES={bytes:X?}");
                     })
+                    .inspect(|RecordBytes { bytes, .. }| {
+                        eprintln!("RECORD_STRING={:?}", String::from_utf8_lossy(bytes))
+                    })
                     .map(|RecordBytes { header, mut bytes }| {
                         let serial_types = header.serial_types.iter();
                         let column = record::read_raw_column(&mut bytes, serial_types);
