@@ -65,7 +65,7 @@ pub fn convert<T: FromRawPage>(Pages { root_page, tail }: RawPages) -> io::Resul
     })
 }
 #[derive(Debug)]
-pub struct PageContent<T> {
+pub struct DatabasePage<T> {
     pub page_index: usize,
     pub content: T,
 }
@@ -74,29 +74,20 @@ fn root_cells<'p>(
         database_header,
         tail,
     }: &'p RootPage<btree::BTreePage>,
-) -> impl Iterator<Item = PageContent<btree::BTreeCell>> + 'p {
-    // eprintln!("READING ROOT CELLS");
-    // eprintln!("ROOTPAGE_DATA={:?}", tail.content);
-    // let nzi = tail
-    //     .content
-    //     .iter()
-    //     .enumerate()
-    //     .find_map(|(idx, elt)| elt.ne(&0).then_some(idx));
-    // eprintln!("ROOTPAGE_STR={:?}", String::from_utf8_lossy(&tail.content));
-    // eprintln!("FIRST NONZERO={nzi:?}");
-    btree::read_cells(tail, core::mem::size_of_val(database_header)).map(|cell| PageContent {
+) -> impl Iterator<Item = DatabasePage<btree::BTreeCell>> + 'p {
+    btree::read_cells(tail, core::mem::size_of_val(database_header)).map(|cell| DatabasePage {
         page_index: 0,
         content: cell,
     })
 }
 pub fn cells<'p>(
     Pages { root_page, tail }: &'p Pages<btree::BTreePage>,
-) -> impl Iterator<Item = PageContent<btree::BTreeCell>> + 'p {
+) -> impl Iterator<Item = DatabasePage<btree::BTreeCell>> + 'p {
     root_cells(root_page).chain(tail.iter().enumerate().flat_map(|(idx, page)| {
         btree::read_cells(page, 0).map(move |cell| {
             eprintln!("NONROOT_CELL={:?}", cell);
             btree::print_cell_rowid(&cell);
-            PageContent {
+            DatabasePage {
                 // Since it is not the root-page, we add one
                 page_index: idx + 1,
                 content: cell,

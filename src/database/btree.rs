@@ -221,11 +221,15 @@ pub fn read_cells<'p>(
         read_cell(&mut src, *r#type).ok()
     })
 }
-pub fn parse_cell<C: FromRawColumn>(cell: BTreeCell) -> io::Result<Record<C>> {
+pub fn parse_cell<C: FromRawColumn>(cell: BTreeCell) -> io::Result<RecordCell<C>> {
     match cell {
         BTreeCell::LeafTable(BTreeLeafTableCell {
-            initial_payload, ..
-        }) => record::read(&mut initial_payload.as_slice()),
+            rowid,
+            initial_payload,
+            ..
+        }) => {
+            record::read(&mut initial_payload.as_slice()).map(|record| RecordCell { rowid, record })
+        }
     }
 }
 
@@ -275,6 +279,11 @@ fn read_cell<R: io::Read>(r: &mut R, r#type: BTreePageType) -> io::Result<BTreeC
         BTreePageType::LeafTable => read_leaf_table_cell(r).map(BTreeCell::LeafTable),
         _ => todo!(),
     }
+}
+#[derive(Debug)]
+pub struct RecordCell<C> {
+    pub rowid: Varint,
+    pub record: Record<C>,
 }
 #[repr(transparent)]
 pub struct TableBTreeInteriorCell {

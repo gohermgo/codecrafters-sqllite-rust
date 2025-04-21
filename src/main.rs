@@ -69,12 +69,12 @@ fn read_cells(database_path: impl AsRef<Path>) -> io::Result<impl Iterator<Item 
         },
     )
 }
-fn read_records<C: record::FromRawColumn>(
-    database_path: impl AsRef<Path>,
-) -> io::Result<impl Iterator<Item = record::Record<C>>> {
-    read_cells(database_path)
-        .map(|cells| cells.filter_map(|cell| database::btree::parse_cell(cell).ok()))
-}
+// fn read_records<C: record::FromRawColumn>(
+//     database_path: impl AsRef<Path>,
+// ) -> io::Result<impl Iterator<Item = record::Record<C>>> {
+//     read_cells(database_path)
+//         .map(|cells| cells.filter_map(|cell| database::btree::parse_cell(cell).ok()))
+// }
 fn tables_command(database_path: impl AsRef<Path>) -> io::Result<()> {
     let database::DatabaseFileContent { header, content } =
         fs::File::open(database_path).and_then(database::read)?;
@@ -86,7 +86,12 @@ fn tables_command(database_path: impl AsRef<Path>) -> io::Result<()> {
         // eprintln!("Read btree-page {page:?}");
         for cell in database::btree::read_cells(&page, core::mem::size_of_val(&header)) {
             let rec = database::btree::parse_cell::<record::SchemaColumn>(cell);
-            if let Ok(Record { columns, .. }) = rec {
+            if let Ok(database::btree::RecordCell {
+                rowid,
+                record: Record { columns, .. },
+            }) = rec
+            {
+                eprintln!("ROWID={}", varint::value_of(&rowid));
                 columns
                     .iter()
                     .for_each(|record::SchemaColumn { table_name, .. }| {
@@ -103,7 +108,7 @@ fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) ->
         .and_then(|mut file| database::read_database(&mut file));
     let dbc = dbc.and_then(database::page::convert::<database::btree::BTreePage>);
     if let Ok(pages) = dbc {
-        for (idx, database::page::PageContent { content, .. }) in
+        for (idx, database::page::DatabasePage { content, .. }) in
             database::page::cells(&pages).enumerate()
         {
             let parsed = database::btree::parse_cell::<record::SchemaColumn>(content);
@@ -117,12 +122,12 @@ fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) ->
     let table_name = split_query.last().expect("Empty SQL query!");
     eprintln!("INPUT TABLE_NAME={table_name}");
 
-    for record in read_records::<record::SchemaColumn>(database_path)? {
-        eprintln!("RECORD={record:?}");
-        record.columns.iter().for_each(|column| {
-            eprintln!("TABLE_NAME={}", String::from_utf8_lossy(&column.table_name))
-        })
-    }
+    // for record in read_records::<record::SchemaColumn>(database_path)? {
+    //     eprintln!("RECORD={record:?}");
+    //     record.columns.iter().for_each(|column| {
+    //         eprintln!("TABLE_NAME={}", String::from_utf8_lossy(&column.table_name))
+    //     })
+    // }
 
     Ok(())
 }
