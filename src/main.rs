@@ -114,7 +114,7 @@ fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) ->
             eprintln!("[IDX: {idx}] SCHEMA={schema:?}");
         }
         for (idx, cell) in btree_cells.iter().enumerate() {
-            eprintln!("[IDX: {idx}] CELL={cell:?}");
+            eprintln!("[IDX: {idx}] CELL={cell:X?}");
         }
         // for (idx, database::page::DatabaseCell { content, .. }) in
         //     database::page::cells(&pages).enumerate()
