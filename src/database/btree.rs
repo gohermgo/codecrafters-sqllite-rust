@@ -152,7 +152,7 @@ fn read_cell_pointer_array<R: io::Read>(
                 return None;
             };
             let cp = u16::from_be_bytes([hi, lo]);
-            eprintln!("CELLPTR={cp}");
+            // eprintln!("CELLPTR={cp}");
             Some(cp)
         })
         .map(BTreeCellPointer)
@@ -204,10 +204,10 @@ impl FromRawPage for BTreePage {
 }
 pub fn read_cells<'p>(
     BTreePage {
-        cell_pointers: BTreeCellPointerArray(cells),
+        cell_pointers: cell_pointers @ BTreeCellPointerArray(cells),
         content,
         header:
-            BTreePageHeader {
+            header @ BTreePageHeader {
                 inner: BTreePageHeaderInner { r#type, .. },
                 ..
             },
@@ -219,6 +219,9 @@ pub fn read_cells<'p>(
     let header_size = page_size - content.len();
     let content_offset = header_size + initial_offset;
     cells.iter().filter_map(move |BTreeCellPointer(offset)| {
+        let adjusted_offset =
+            size_of_page_header(header) + size_of_cell_pointer_array(cell_pointers);
+        eprintln!("ADJ={adjusted_offset}");
         let adjusted_offset = *offset as usize - content_offset;
         let mut src = &content[adjusted_offset..];
 
