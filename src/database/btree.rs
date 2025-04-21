@@ -263,6 +263,13 @@ fn read_leaf_table_cell<R: io::Read>(r: &mut R) -> io::Result<BTreeLeafTableCell
 pub enum BTreeCell {
     LeafTable(BTreeLeafTableCell),
 }
+pub fn print_cell_rowid(cell: &BTreeCell) {
+    match cell {
+        BTreeCell::LeafTable(BTreeLeafTableCell { rowid, .. }) => {
+            eprintln!("CELL_ROWID={}", varint::value_of(rowid))
+        }
+    }
+}
 fn read_cell<R: io::Read>(r: &mut R, r#type: BTreePageType) -> io::Result<BTreeCell> {
     match r#type {
         BTreePageType::LeafTable => read_leaf_table_cell(r).map(BTreeCell::LeafTable),

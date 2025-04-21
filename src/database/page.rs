@@ -95,6 +95,7 @@ pub fn cells<'p>(
     root_cells(root_page).chain(tail.iter().enumerate().flat_map(|(idx, page)| {
         btree::read_cells(page, 0).map(move |cell| {
             eprintln!("NONROOT_CELL={:?}", cell);
+            btree::print_cell_rowid(&cell);
             PageContent {
                 // Since it is not the root-page, we add one
                 page_index: idx + 1,
