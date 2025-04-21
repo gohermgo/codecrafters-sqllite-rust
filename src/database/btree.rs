@@ -218,7 +218,10 @@ pub fn read_cells<'p>(
     let content_offset = header_size + initial_offset;
     cells.iter().filter_map(move |BTreeCellPointer(offset)| {
         let adjusted_offset = *offset as usize - content_offset;
+        eprintln!("ADJUSTED_OFFSET={adjusted_offset}");
         let mut src = &content[adjusted_offset..];
+        eprintln!("SRCLEN={}", src.len());
+        eprintln!("SRC={}", String::from_utf8_lossy(src));
         read_cell(&mut src, *r#type).ok()
     })
 }
