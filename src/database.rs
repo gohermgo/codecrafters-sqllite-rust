@@ -2,6 +2,7 @@ use core::ffi::c_char;
 use std::{fs, path::Path};
 
 mod btree;
+pub use btree::get_cell_content;
 mod page;
 pub use page::{PageCells, Pages};
 

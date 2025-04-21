@@ -268,6 +268,14 @@ fn read_leaf_table_cell<R: io::Read>(r: &mut R) -> io::Result<BTreeLeafTableCell
 pub enum BTreeCell {
     LeafTable(BTreeLeafTableCell),
 }
+pub fn get_cell_content(cell: &BTreeCell) -> Option<&[u8]> {
+    match cell {
+        BTreeCell::LeafTable(BTreeLeafTableCell {
+            initial_payload, ..
+        }) => Some(initial_payload.as_slice()),
+        // _ => None,
+    }
+}
 pub fn print_cell_rowid(cell: &BTreeCell) {
     match cell {
         BTreeCell::LeafTable(BTreeLeafTableCell { rowid, .. }) => {
