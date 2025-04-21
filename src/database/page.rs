@@ -35,6 +35,7 @@ fn convert_root_page<T: FromRawPage>(
         tail,
     }: RootPage<RawPage>,
 ) -> io::Result<RootPage<T>> {
+    eprintln!("CONVERTING ROOTPAGE");
     T::from_raw_page(tail).map(|tail| RootPage {
         database_header,
         tail,
@@ -75,6 +76,7 @@ fn root_cells<'p>(
         tail,
     }: &'p RootPage<btree::BTreePage>,
 ) -> impl Iterator<Item = PageContent<btree::BTreeCell>> + 'p {
+    eprintln!("READING CELLS");
     btree::read_cells(
         tail,
         core::mem::size_of_val(database_header),
