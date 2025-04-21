@@ -23,7 +23,7 @@ pub struct RootPage<T> {
 fn read_root_page<R: io::Read>(r: &mut R) -> io::Result<RootPage<RawPage>> {
     let database_header = database::read_header(r)?;
     let tail_size = database_header.page_size as usize - core::mem::size_of_val(&database_header);
-    eprintln!("READING ROOTPAGE WITH TAIL_SIZE={tail_size}");
+    eprintln!("READING ROOTPAGE");
     read_raw_page(r, tail_size).map(|tail| RootPage {
         database_header,
         tail,
@@ -35,9 +35,6 @@ fn convert_root_page<T: FromRawPage>(
         tail,
     }: RootPage<RawPage>,
 ) -> io::Result<RootPage<T>> {
-    eprintln!("CONVERTING ROOTPAGE");
-    eprintln!("ROOTPAGE_DATA={:?}", tail.0);
-    eprintln!("ROOTPAGE_STR={:?}", String::from_utf8_lossy(&tail.0));
     T::from_raw_page(tail).map(|tail| RootPage {
         database_header,
         tail,
@@ -78,15 +75,15 @@ fn root_cells<'p>(
         tail,
     }: &'p RootPage<btree::BTreePage>,
 ) -> impl Iterator<Item = PageContent<btree::BTreeCell>> + 'p {
-    eprintln!("READING ROOT CELLS");
-    eprintln!("ROOTPAGE_DATA={:?}", tail.content);
-    let nzi = tail
-        .content
-        .iter()
-        .enumerate()
-        .find_map(|(idx, elt)| elt.ne(&0).then_some(idx));
-    eprintln!("ROOTPAGE_STR={:?}", String::from_utf8_lossy(&tail.content));
-    eprintln!("FIRST NONZERO={nzi:?}");
+    // eprintln!("READING ROOT CELLS");
+    // eprintln!("ROOTPAGE_DATA={:?}", tail.content);
+    // let nzi = tail
+    //     .content
+    //     .iter()
+    //     .enumerate()
+    //     .find_map(|(idx, elt)| elt.ne(&0).then_some(idx));
+    // eprintln!("ROOTPAGE_STR={:?}", String::from_utf8_lossy(&tail.content));
+    // eprintln!("FIRST NONZERO={nzi:?}");
     btree::read_cells(tail, core::mem::size_of_val(database_header)).map(|cell| PageContent {
         page_index: 0,
         content: cell,

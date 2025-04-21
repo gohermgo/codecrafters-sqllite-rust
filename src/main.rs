@@ -93,8 +93,6 @@ fn tables_command(database_path: impl AsRef<Path>) -> io::Result<()> {
                         println!("{}", String::from_utf8_lossy(table_name))
                     });
             }
-            // let res = rec.and_then(btree::read_schema);
-            // eprintln!("SCHEMA {res:?}");
         }
     }
 

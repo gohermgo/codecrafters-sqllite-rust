@@ -178,9 +178,9 @@ pub fn read_page<R: io::Read>(r: &mut R) -> io::Result<BTreePage> {
         "Size of cell-pointer array is {}",
         size_of_cell_pointer_array(&cell_pointers)
     );
-    let currently_read = size_of_page_header(&header) + size_of_cell_pointer_array(&cell_pointers);
-    let adjusted_offset = header.inner.content_area_start as usize - currently_read;
-    eprintln!("Adjusted offset is {adjusted_offset}");
+    // let currently_read = size_of_page_header(&header) + size_of_cell_pointer_array(&cell_pointers);
+    // let adjusted_offset = header.inner.content_area_start as usize - currently_read;
+    // eprintln!("Adjusted offset is {adjusted_offset}");
     // TODO: Make this actually use the DB-header to calculate and read etc etc
     let reserved_area = vec![];
 
