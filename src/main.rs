@@ -17,7 +17,6 @@ pub struct Command<'a> {
 pub const COMMAND_COUNT: usize = 1;
 pub const COMMANDS: [Command<'_>; COMMAND_COUNT] = [Command { name: "dbinfo" }];
 
-pub mod btree;
 pub mod database;
 pub mod io;
 pub mod record;
@@ -26,7 +25,7 @@ pub mod varint;
 pub use record::{Record, RecordElement, RecordHeader, RecordValue};
 pub use varint::Varint;
 
-use crate::btree::BTreeCell;
+use database::btree::BTreeCell;
 
 fn main() -> Result<()> {
     let dir = std::env::current_dir().and_then(fs::read_dir)?;
@@ -61,11 +60,11 @@ fn read_cells(database_path: impl AsRef<Path>) -> io::Result<impl Iterator<Item 
             let page_size = header.page_size as usize;
             content
                 .filter_map(|database::DatabaseTable(content)| {
-                    btree::read_page(&mut content.as_slice()).ok()
+                    database::btree::read_page(&mut content.as_slice()).ok()
                 })
                 .flat_map(move |page| {
                     let v: Vec<BTreeCell> =
-                        btree::read_cells(&page, header_size, page_size).collect();
+                        database::btree::read_cells(&page, header_size, page_size).collect();
                     v.into_iter()
                 })
         },
@@ -74,23 +73,24 @@ fn read_cells(database_path: impl AsRef<Path>) -> io::Result<impl Iterator<Item 
 fn read_records<C: record::FromRawColumn>(
     database_path: impl AsRef<Path>,
 ) -> io::Result<impl Iterator<Item = record::Record<C>>> {
-    read_cells(database_path).map(|cells| cells.filter_map(|cell| btree::parse_cell(cell).ok()))
+    read_cells(database_path)
+        .map(|cells| cells.filter_map(|cell| database::btree::parse_cell(cell).ok()))
 }
 fn tables_command(database_path: impl AsRef<Path>) -> io::Result<()> {
     let database::DatabaseFileContent { header, content } =
         fs::File::open(database_path).and_then(database::read)?;
     let btree_pages = content.filter_map(|database::DatabaseTable(content)| {
-        btree::read_page(&mut content.as_slice()).ok()
+        database::btree::read_page(&mut content.as_slice()).ok()
     });
 
     for page in btree_pages {
         // eprintln!("Read btree-page {page:?}");
-        for cell in btree::read_cells(
+        for cell in database::btree::read_cells(
             &page,
             core::mem::size_of_val(&header),
             header.page_size as usize,
         ) {
-            let rec = btree::parse_cell::<record::SchemaColumn>(cell);
+            let rec = database::btree::parse_cell::<record::SchemaColumn>(cell);
             if let Ok(Record { columns, .. }) = rec {
                 columns
                     .iter()
@@ -108,8 +108,13 @@ fn tables_command(database_path: impl AsRef<Path>) -> io::Result<()> {
 fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) -> io::Result<()> {
     let dbc = fs::File::open(database_path.as_ref())
         .and_then(|mut file| database::read_database(&mut file));
-    let dbc = dbc.and_then(database::convert_database);
-    eprintln!("READ DBC={dbc:?}");
+    let dbc = dbc.and_then(database::page::convert::<database::btree::BTreePage>);
+    if let Ok(pages) = dbc {
+        for (idx, cell) in database::page::cells(&pages).enumerate() {
+            eprintln!("CELL {idx}={cell:?}");
+        }
+    }
+    // eprintln!("READ DBC={dbc:?}");
     // TODO: Proper query parsing
     let split_query = query.as_ref().split_whitespace();
     eprintln!("SPLIT={split_query:?}");

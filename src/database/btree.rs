@@ -2,6 +2,8 @@ use core::fmt;
 
 use std::error::Error;
 
+use crate::database::page::{FromRawPage, RawPage};
+
 use crate::{
     io,
     record::{FromRawColumn, RawColumn, SchemaColumn},
@@ -190,6 +192,14 @@ pub fn read_page<R: io::Read>(r: &mut R) -> io::Result<BTreePage> {
         content,
     })
 }
+impl FromRawPage for BTreePage {
+    fn from_raw_page(RawPage(page_data): RawPage) -> io::Result<Self>
+    where
+        Self: Sized,
+    {
+        read_page(&mut page_data.as_slice())
+    }
+}
 pub fn read_cells<'p>(
     BTreePage {
         cell_pointers: BTreeCellPointerArray(cells),
@@ -266,12 +276,6 @@ pub struct TableBTreeInteriorCell {
     pub page_number: u32,
 }
 
-// #[derive(Debug)]
-// pub struct Record {
-//     pub header: RecordHeader,
-//     // pub elt: RecordElement,
-//     pub tail: Vec<u8>,
-// }
 #[derive(Debug)]
 pub struct Schema {
     pub size: Varint,
@@ -301,62 +305,4 @@ pub fn read_schema(
             .filter_map(|elt| SchemaColumn::from_raw_column(elt).ok())
             .collect(),
     })
-    // let type =
-    // todo!()
-    // let mut src = data.as_slice();
-
-    // let type_varint = &header.serial_types[0];
-    // let r#type = read_encoded_string(&mut src, type_varint)?;
-    // eprintln!("\nTYPE={}", String::from_utf8_lossy(&r#type));
-
-    // let name_varint = &header.serial_types[1];
-    // let name = read_encoded_string(&mut src, name_varint)?;
-    // eprintln!("\nNAME={}", String::from_utf8_lossy(&name));
-
-    // let table_name_varint = &header.serial_types[2];
-    // let table_name = read_encoded_string(&mut src, table_name_varint)?;
-    // eprintln!("\nTABLE_NAME={}", String::from_utf8_lossy(&table_name));
-
-    // let rootpage_varint = &header.serial_types[3];
-    // let RecordValue::TwosComplement8(rootpage) = record::read_value(&mut src, rootpage_varint)?
-    // else {
-    //     return Err(io::Error::new(
-    //         std::io::ErrorKind::InvalidData,
-    //         "Ill formed table_name",
-    //     ));
-    // };
-    // eprintln!("\nROOTPAGE={rootpage}");
-
-    // let sql_varint = &header.serial_types[4];
-    // let sql = read_encoded_string(&mut src, sql_varint)?;
-
-    // eprintln!("\nSQL={}", String::from_utf8_lossy(&sql));
-
-    // eprintln!("\nSRC remainder={:?}", src);
-
-    // Ok(Schema {
-    //     size: header.size,
-    //     r#type,
-    //     name,
-    //     table_name,
-    //     rootpage,
-    //     sql,
-    // })
 }
-// pub fn read_record<R: io::Read>(r: &mut R) -> io::Result<Record> {
-//     let header = record::read_header(r)?;
-//     eprintln!("RECORD SIZE: {:?}", varint::value_of(&header.size));
-//     for (idx, t) in header.serial_types.iter().enumerate() {
-//         eprintln!("RECORD TYPE: {idx} -> {}", varint::value_of(t));
-//         let elt = record::read_element(r, t)?;
-//         eprintln!("TABLE NAME: {}", String::from_utf8_lossy(&elt.0));
-//     }
-//     // eprintln!("RECORD TYPE: {:?}", calculate_varint(&header.serial_type));
-
-//     let mut tail = vec![];
-//     io::Read::read_to_end(r, &mut tail)?;
-
-//     eprintln!("TABLE DATA: {}", String::from_utf8_lossy(&tail));
-
-//     Ok(Record { header, tail })
-// }
