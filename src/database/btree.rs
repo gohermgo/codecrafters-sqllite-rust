@@ -223,10 +223,8 @@ pub fn read_cells<'p>(
         let mut src = &content[adjusted_offset..];
         eprintln!("SRCLEN={}", src.len());
         eprintln!("SRC={}", String::from_utf8_lossy(src));
-        eprintln!(
-            "FULL={}",
-            String::from_utf8_lossy(&content[*offset as usize..])
-        );
+        let full = content.get(*offset as usize..).map(String::from_utf8_lossy);
+        eprintln!("FULL={:?}", full);
         read_cell(&mut src, *r#type).ok()
     })
 }
