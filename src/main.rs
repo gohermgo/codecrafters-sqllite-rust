@@ -114,7 +114,9 @@ fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) ->
             database::page::cells(&pages).enumerate()
         {
             let parsed = database::btree::parse_cell::<record::SchemaColumn>(content);
-            eprintln!("CELL {idx}={parsed:?}");
+            if idx == 0 {
+                eprintln!("CELL {idx}={parsed:?}");
+            }
         }
     }
     // eprintln!("READ DBC={dbc:?}");
