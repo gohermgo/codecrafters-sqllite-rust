@@ -106,22 +106,21 @@ fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) ->
         .and_then(|mut file| database::read_database(&mut file));
     let dbc = dbc.and_then(database::page::convert::<database::btree::BTreePage>);
     if let Ok(pages) = dbc {
-        let database::page::PageCells {
-            schema_cells,
-            btree_cells,
-        } = database::page::cells(&pages);
-        for (idx, schema) in schema_cells.iter().enumerate() {
-            eprintln!("[IDX: {idx}] SCHEMA={schema:?}");
+        let cells = database::page::cells(&pages);
+        for (record, page) in cells {
+            eprintln!("REC={record:?}");
+            eprintln!("PAGE={page:?}");
         }
-        for (idx, cell) in btree_cells.iter().enumerate() {
-            eprintln!("[IDX: {idx}] CELL={cell:X?}");
-        }
-        // for (idx, database::page::DatabaseCell { content, .. }) in
-        //     database::page::cells(&pages).enumerate()
-        // {
-        //     let parsed = database::btree::parse_cell::<record::SchemaColumn>(content);
-        //     eprintln!("CELL {idx}={parsed:?}");
+        // let database::page::PageCells {
+        //     schema_cells,
+        //     btree_cells,
+        // } = database::page::cells(&pages);
+        // for (idx, schema) in schema_cells.iter().enumerate() {
+        //     eprintln!("[IDX: {idx}] SCHEMA={schema:?}");
         // }
+        // for (idx, cell) in btree_cells.iter().enumerate() {
+        //     eprintln!("[IDX: {idx}] CELL={cell:X?}");
+        // };
     }
     // eprintln!("READ DBC={dbc:?}");
     // TODO: Proper query parsing

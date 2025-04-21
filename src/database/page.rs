@@ -1,6 +1,7 @@
 use crate::database;
 use crate::database::{btree, DatabaseHeader};
 use crate::io;
+use crate::record;
 
 pub trait FromRawPage {
     fn from_raw_page(raw_page: RawPage) -> io::Result<Self>
@@ -74,59 +75,46 @@ fn root_cells<'p>(
         database_header,
         tail,
     }: &'p RootPage<btree::BTreePage>,
-) -> impl Iterator<Item = DatabaseCell<btree::BTreeCell>> + 'p {
-    btree::read_cells(tail, core::mem::size_of_val(database_header)).map(|cell| DatabaseCell {
-        page_index: 0,
-        content: cell,
-    })
-}
-pub fn cells(Pages { root_page, tail }: &Pages<btree::BTreePage>) -> PageCells {
-    let root_cells = root_cells(root_page);
-    let schema_cells = parse_root_cells(root_cells).collect();
-    let btree_cells = tail
-        .iter()
-        .flat_map(|page| btree::read_cells(page, 0).inspect(btree::print_cell_rowid))
-        .collect();
-    PageCells {
-        schema_cells,
-        btree_cells,
-    }
-    // root_cells(root_page).chain(tail.iter().enumerate().flat_map(|(idx, page)| {
-    //     btree::read_cells(page, 0).map(move |cell| {
-    //         eprintln!("NONROOT_CELL={:?}", cell);
-    //         btree::print_cell_rowid(&cell);
-    //         DatabaseCell {
-    //             // Since it is not the root-page, we add one
-    //             page_index: idx + 1,
-    //             content: cell,
-    //         }
-    //     })
-    // }))
-}
-pub type SchemaCell = DatabaseCell<btree::SchemaRecordCell>;
-pub struct PageCells {
-    pub schema_cells: Vec<SchemaCell>,
-    pub btree_cells: Vec<btree::BTreeCell>,
+) -> impl Iterator<Item = btree::BTreeCell> + 'p {
+    btree::read_cells(tail, core::mem::size_of_val(database_header))
 }
 fn parse_root_cells(
-    xs: impl Iterator<Item = DatabaseCell<btree::BTreeCell>>,
-) -> impl Iterator<Item = SchemaCell> {
-    xs.map_while(
-        |DatabaseCell {
-             page_index,
-             content,
-         }| {
-            btree::parse_cell(content)
-                .map(|content| DatabaseCell {
-                    page_index,
-                    content,
-                })
-                .ok()
-        },
-    )
+    xs: impl Iterator<Item = btree::BTreeCell>,
+) -> impl Iterator<Item = btree::RecordCell<record::SchemaColumn>> {
+    xs.map_while(|cell| btree::parse_cell(cell).ok())
 }
 pub struct Database {
     pub schema: Vec<SchemaCell>,
     pub cells: Vec<DatabaseCell<btree::BTreeCell>>,
 }
-// pub fn parse()
+pub type SchemaCell = DatabaseCell<btree::SchemaRecordCell>;
+pub struct PageCells {
+    pub schema_cells: Vec<btree::RecordCell<record::SchemaColumn>>,
+    pub btree_cells: Vec<Vec<btree::BTreeCell>>,
+}
+pub fn cells(Pages { root_page, tail }: &Pages<btree::BTreePage>) -> PageCells {
+    PageCells {
+        schema_cells: parse_root_cells(root_cells(root_page)).collect(),
+        btree_cells: tail
+            .iter()
+            .map(|page| {
+                btree::read_cells(page, 0)
+                    .inspect(btree::print_cell_rowid)
+                    .collect()
+            })
+            .collect(),
+    }
+}
+impl IntoIterator for PageCells {
+    type IntoIter = core::iter::Zip<
+        std::vec::IntoIter<btree::RecordCell<record::SchemaColumn>>,
+        std::vec::IntoIter<Vec<btree::BTreeCell>>,
+    >;
+    type Item = (
+        btree::RecordCell<record::SchemaColumn>,
+        Vec<btree::BTreeCell>,
+    );
+    fn into_iter(self) -> Self::IntoIter {
+        self.schema_cells.into_iter().zip(self.btree_cells)
+    }
+}
