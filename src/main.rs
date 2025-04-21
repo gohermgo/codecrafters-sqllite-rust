@@ -113,8 +113,8 @@ fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) ->
         for (idx, database::page::PageContent { content, .. }) in
             database::page::cells(&pages).enumerate()
         {
-            let parsed = database::btree::parse_cell::<record::SchemaColumn>(content);
             if idx == 0 {
+                let parsed = database::btree::parse_cell::<record::SchemaColumn>(content);
                 eprintln!("CELL {idx}={parsed:?}");
             }
         }
