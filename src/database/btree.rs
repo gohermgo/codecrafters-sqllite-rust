@@ -4,10 +4,7 @@ use std::error::Error;
 
 use crate::database::page::{FromRawPage, RawPage};
 
-use crate::{
-    io,
-    record::{FromRawColumn, RawColumn, SchemaColumn},
-};
+use crate::{io, record::FromRawColumn};
 use crate::{record, Record};
 use crate::{varint, Varint};
 
@@ -44,7 +41,7 @@ impl From<BTreePageTypeError> for io::Error {
         io::Error::new(io::ErrorKind::InvalidData, value)
     }
 }
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 #[repr(C, packed(1))]
 pub struct BTreePageHeaderInner<Ty> {
     /// Indicates the b-tree page type.
@@ -63,7 +60,11 @@ pub struct BTreePageHeaderInner<Ty> {
     pub free_bytes_in_content_area: u8,
 }
 impl<Ty> BTreePageHeaderInner<Ty> {
-    pub fn to_be(self) -> BTreePageHeaderInner<Ty> {
+    #[must_use]
+    pub fn to_be(self) -> BTreePageHeaderInner<Ty>
+    where
+        Ty: Copy,
+    {
         let BTreePageHeaderInner {
             first_freeblock_start,
             cell_count,
@@ -285,31 +286,30 @@ pub struct RecordCell<C> {
     pub rowid: Varint,
     pub record: Record<C>,
 }
-pub type SchemaRecordCell = RecordCell<SchemaColumn>;
 #[repr(transparent)]
 pub struct TableBTreeInteriorCell {
     /// A big-endian number which is the left child pointer
     pub page_number: u32,
 }
 
-#[derive(Debug)]
-pub struct Schema {
-    pub size: Varint,
-    pub r#type: Vec<u8>,
-    pub name: Vec<u8>,
-    pub table_name: Vec<u8>,
-    pub rootpage: u8,
-    pub sql: Vec<u8>,
-}
-pub fn read_schema(
-    Record { header, columns }: Record<RawColumn>,
-) -> io::Result<Record<SchemaColumn>> {
-    eprintln!("\n\nREAD SCHEMA");
-    Ok(Record {
-        header,
-        columns: columns
-            .into_iter()
-            .filter_map(|elt| SchemaColumn::from_raw_column(elt).ok())
-            .collect(),
-    })
-}
+// #[derive(Debug)]
+// pub struct Schema {
+//     pub size: Varint,
+//     pub r#type: Vec<u8>,
+//     pub name: Vec<u8>,
+//     pub table_name: Vec<u8>,
+//     pub rootpage: u8,
+//     pub sql: Vec<u8>,
+// }
+// pub fn read_schema(
+//     Record { header, columns }: Record<RawColumn>,
+// ) -> io::Result<Record<SchemaColumn>> {
+//     eprintln!("\n\nREAD SCHEMA");
+//     Ok(Record {
+//         header,
+//         columns: columns
+//             .into_iter()
+//             .filter_map(|elt| SchemaColumn::from_raw_column(elt).ok())
+//             .collect(),
+//     })
+// }

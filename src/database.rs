@@ -192,7 +192,7 @@ pub struct Database {
 pub fn open(database_path: impl AsRef<Path>) -> io::Result<Database> {
     fs::File::open(database_path)
         .and_then(|mut file| read_database(&mut file))
-        .and_then(|pages| page::convert::<btree::BTreePage>(pages))
+        .and_then(page::convert::<btree::BTreePage>)
         .map(|pages| {
             let page_cells = page::cells(&pages);
             Database {

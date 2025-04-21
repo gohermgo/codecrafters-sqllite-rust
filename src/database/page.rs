@@ -65,11 +65,6 @@ pub fn convert<T: FromRawPage>(Pages { root_page, tail }: RawPages) -> io::Resul
             .collect(),
     })
 }
-#[derive(Debug)]
-pub struct DatabaseCell<T> {
-    pub page_index: usize,
-    pub content: T,
-}
 fn root_cells<'p>(
     RootPage {
         database_header,

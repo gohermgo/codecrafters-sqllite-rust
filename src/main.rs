@@ -45,71 +45,26 @@ fn main() -> Result<()> {
     Ok(())
 }
 fn db_info_command(database_path: impl AsRef<Path>) -> io::Result<()> {
-    let database = fs::File::open(database_path).and_then(database::read)?;
-    println!("database page size: {}", database.header.page_size);
-    let number_of_tables = database.content.count();
-    println!("number of tables: {number_of_tables}");
+    if let Ok(database::Database { header, page_cells }) = database::open(database_path) {
+        println!("database page size: {}", header.page_size);
+        let number_of_tables = page_cells.btree_cells.len();
+        println!("number of tables: {number_of_tables}");
+    }
+    // let database = fs::File::open(database_path).and_then(database::read)?;
+    // println!("database page size: {}", database.header.page_size);
+    // let number_of_tables = database.content.count();
+    // println!("number of tables: {number_of_tables}");
     Ok(())
 }
-// fn read_cells(database_path: impl AsRef<Path>) -> io::Result<impl Iterator<Item = BTreeCell>> {
-//     fs::File::open(database_path).and_then(database::read).map(
-//         |database::DatabaseFileContent { header, content }| {
-//             let header_size = core::mem::size_of_val(&header);
-//             content
-//                 .filter_map(|database::DatabaseTable(content)| {
-//                     database::btree::read_page(&mut content.as_slice()).ok()
-//                 })
-//                 .flat_map(move |page| {
-//                     let v: Vec<BTreeCell> =
-//                         database::btree::read_cells(&page, header_size).collect();
-//                     v.into_iter()
-//                 })
-//         },
-//     )
-// }
-// fn read_records<C: record::FromRawColumn>(
-//     database_path: impl AsRef<Path>,
-// ) -> io::Result<impl Iterator<Item = record::Record<C>>> {
-//     read_cells(database_path)
-//         .map(|cells| cells.filter_map(|cell| database::btree::parse_cell(cell).ok()))
-// }
 fn tables_command(database_path: impl AsRef<Path>) -> io::Result<()> {
     if let Ok(database::Database { page_cells, .. }) = database::open(database_path) {
         for (record, _) in page_cells {
             println!("{}", String::from_utf8_lossy(&record.column.table_name));
         }
     }
-    // let database::DatabaseFileContent { header, content } =
-    //     fs::File::open(database_path).and_then(database::read)?;
-    // let btree_pages = content.filter_map(|database::DatabaseTable(content)| {
-    //     database::btree::read_page(&mut content.as_slice()).ok()
-    // });
-
-    // for page in btree_pages {
-    //     // eprintln!("Read btree-page {page:?}");
-    //     for cell in database::btree::read_cells(&page, core::mem::size_of_val(&header)) {
-    //         let rec = database::btree::parse_cell::<record::SchemaColumn>(cell);
-    //         if let Ok(database::btree::RecordCell {
-    //             rowid,
-    //             record: Record { columns, .. },
-    //         }) = rec
-    //         {
-    //             eprintln!("ROWID={}", varint::value_of(&rowid));
-    //             columns
-    //                 .iter()
-    //                 .for_each(|record::SchemaColumn { table_name, .. }| {
-    //                     println!("{}", String::from_utf8_lossy(table_name))
-    //                 });
-    //         }
-    //     }
-    // }
-
     Ok(())
 }
 fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) -> io::Result<()> {
-    // let dbc = fs::File::open(database_path.as_ref())
-    //     .and_then(|mut file| database::read_database(&mut file));
-    // let dbc = dbc.and_then(database::page::convert::<database::btree::BTreePage>);
     // TODO: Proper query parsing
     let split_query = query.as_ref().split_whitespace();
     eprintln!("SPLIT={split_query:?}");
