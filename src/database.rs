@@ -1,6 +1,6 @@
 use core::ffi::c_char;
 
-use std::io;
+use crate::io;
 
 const HEADER_STRING_SIZE: usize = 16;
 const HEADER_RESERVED_SIZE: usize = 20;
@@ -115,6 +115,40 @@ fn read_header<R: io::Read>(r: &mut R) -> io::Result<DatabaseHeader> {
     Ok(header.to_be())
 }
 #[derive(Debug)]
+pub struct RawPage(pub Vec<u8>);
+fn read_raw_page<R: io::Read>(r: &mut R, page_size: usize) -> io::Result<RawPage> {
+    eprintln!("READING RAWPAGE WITH PAGE_SIZE={page_size}");
+    io::read_exact_vec(r, page_size).map(RawPage)
+}
+#[derive(Debug)]
+pub struct RootPage {
+    pub database_header: DatabaseHeader,
+    pub tail: Vec<u8>,
+}
+fn read_root_page<R: io::Read>(r: &mut R) -> io::Result<RootPage> {
+    let database_header = read_header(r)?;
+    let tail_size = database_header.page_size as usize - core::mem::size_of_val(&database_header);
+    eprintln!("READING ROOTPAGE WITH TAIL_SIZE={tail_size}");
+    io::read_exact_vec(r, tail_size).map(|tail| RootPage {
+        database_header,
+        tail,
+    })
+}
+#[derive(Debug)]
+pub struct DatabaseContent {
+    pub root_page: RootPage,
+    pub tail: Vec<RawPage>,
+}
+pub fn read_database<R: io::Read>(r: &mut R) -> io::Result<DatabaseContent> {
+    read_root_page(r).map(|root_page| {
+        let page_size = root_page.database_header.page_size as usize;
+        DatabaseContent {
+            root_page,
+            tail: core::iter::from_fn(|| read_raw_page(r, page_size).ok()).collect(),
+        }
+    })
+}
+#[derive(Debug)]
 pub struct DatabaseTable(pub Vec<u8>);
 fn read_table<R: io::Read>(r: &mut R, page_size: usize) -> io::Result<DatabaseTable> {
     eprintln!("READING TABLE={page_size}");
@@ -128,17 +162,9 @@ pub struct DatabaseFileContent<D> {
     pub header: DatabaseHeader,
     pub content: D,
 }
-// pub fn to_pages<R: io::Read + 'static>(r: R) -> io::Result<DatabaseFileContent<>>
 pub fn read<R: io::Read + 'static>(
     r: R,
 ) -> io::Result<DatabaseFileContent<impl Iterator<Item = DatabaseTable>>> {
-    // read_header(&mut r).map(|header| {
-    //     let page_size = header.page_size as usize;
-    //     DatabaseFileContent {
-    //         header,
-    //         content: core::iter::from_fn(move || read_table(&mut r, page_size).ok()),
-    //     }
-    // })
     read_with(r, move |r, page_size| read_table(r, page_size).ok())
 }
 pub fn read_with<T, R: io::Read + 'static>(
