@@ -36,7 +36,8 @@ fn convert_root_page<T: FromRawPage>(
     }: RootPage<RawPage>,
 ) -> io::Result<RootPage<T>> {
     eprintln!("CONVERTING ROOTPAGE");
-    eprintln!("ROOTPAGE_DATA={}", String::from_utf8_lossy(&tail.0));
+    eprintln!("ROOTPAGE_DATA={:?}", tail.0);
+    eprintln!("ROOTPAGE_STR={:?}", String::from_utf8_lossy(&tail.0));
     T::from_raw_page(tail).map(|tail| RootPage {
         database_header,
         tail,
