@@ -108,6 +108,7 @@ fn tables_command(database_path: impl AsRef<Path>) -> io::Result<()> {
 fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) -> io::Result<()> {
     let dbc = fs::File::open(database_path.as_ref())
         .and_then(|mut file| database::read_database(&mut file));
+    let dbc = dbc.and_then(database::convert_database);
     eprintln!("READ DBC={dbc:?}");
     // TODO: Proper query parsing
     let split_query = query.as_ref().split_whitespace();

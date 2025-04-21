@@ -1,5 +1,6 @@
 use core::ffi::c_char;
 
+use crate::btree;
 use crate::io;
 
 const HEADER_STRING_SIZE: usize = 16;
@@ -120,12 +121,19 @@ fn read_raw_page<R: io::Read>(r: &mut R, page_size: usize) -> io::Result<RawPage
     eprintln!("READING RAWPAGE WITH PAGE_SIZE={page_size}");
     io::read_exact_vec(r, page_size).map(RawPage)
 }
-#[derive(Debug)]
-pub struct RootPage {
-    pub database_header: DatabaseHeader,
-    pub tail: Vec<u8>,
+fn convert_raw_page(RawPage(data): RawPage) -> io::Result<btree::BTreePage> {
+    crate::btree::read_page(&mut data.as_slice())
 }
-fn read_root_page<R: io::Read>(r: &mut R) -> io::Result<RootPage> {
+#[derive(Debug)]
+pub struct RootPage<T> {
+    pub database_header: DatabaseHeader,
+    pub tail: T,
+}
+pub trait Page<T> {
+    fn tail_ref(&self) -> &T;
+    fn tail_mut(&mut self) -> &mut T;
+}
+fn read_root_page<R: io::Read>(r: &mut R) -> io::Result<RootPage<Vec<u8>>> {
     let database_header = read_header(r)?;
     let tail_size = database_header.page_size as usize - core::mem::size_of_val(&database_header);
     eprintln!("READING ROOTPAGE WITH TAIL_SIZE={tail_size}");
@@ -134,18 +142,40 @@ fn read_root_page<R: io::Read>(r: &mut R) -> io::Result<RootPage> {
         tail,
     })
 }
-#[derive(Debug)]
-pub struct DatabaseContent {
-    pub root_page: RootPage,
-    pub tail: Vec<RawPage>,
+fn convert_root_page(
+    RootPage {
+        database_header,
+        tail,
+    }: RootPage<Vec<u8>>,
+) -> io::Result<RootPage<btree::BTreePage>> {
+    btree::read_page(&mut tail.as_slice()).map(|tail| RootPage {
+        database_header,
+        tail,
+    })
 }
-pub fn read_database<R: io::Read>(r: &mut R) -> io::Result<DatabaseContent> {
+#[derive(Debug)]
+pub struct DatabaseContent<T, U> {
+    pub root_page: RootPage<T>,
+    pub tail: Vec<U>,
+}
+pub fn read_database<R: io::Read>(r: &mut R) -> io::Result<DatabaseContent<Vec<u8>, RawPage>> {
     read_root_page(r).map(|root_page| {
         let page_size = root_page.database_header.page_size as usize;
         DatabaseContent {
             root_page,
             tail: core::iter::from_fn(|| read_raw_page(r, page_size).ok()).collect(),
         }
+    })
+}
+pub fn convert_database(
+    DatabaseContent { root_page, tail }: DatabaseContent<Vec<u8>, RawPage>,
+) -> io::Result<DatabaseContent<btree::BTreePage, btree::BTreePage>> {
+    convert_root_page(root_page).map(|root_page| DatabaseContent {
+        root_page,
+        tail: tail
+            .into_iter()
+            .filter_map(|raw_page| convert_raw_page(raw_page).ok())
+            .collect(),
     })
 }
 #[derive(Debug)]
