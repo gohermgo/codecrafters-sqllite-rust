@@ -81,6 +81,7 @@ fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) ->
                 for str in page
                     .iter()
                     .filter_map(database::get_cell_content)
+                    .inspect(|bytes| eprintln!("BYTES={bytes:X?}"))
                     .map(String::from_utf8_lossy)
                 {
                     eprintln!("CONTENT={str:?}")
