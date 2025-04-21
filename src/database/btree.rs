@@ -216,13 +216,15 @@ pub fn read_cells<'p>(
     initial_offset: usize,
     page_size: usize,
 ) -> impl Iterator<Item = BTreeCell> + 'p {
-    let header_size = page_size - content.len();
-    let content_offset = header_size + initial_offset;
+    let content_offset =
+        size_of_page_header(header) + size_of_cell_pointer_array(cell_pointers) + initial_offset;
+    eprintln!("CONTENT_OFFSET={content_offset}");
+    // let header_size = page_size - content.len();
+    // let content_offset = header_size + initial_offset;
     cells.iter().filter_map(move |BTreeCellPointer(offset)| {
-        let adjusted_offset =
-            size_of_page_header(header) + size_of_cell_pointer_array(cell_pointers);
-        eprintln!("ADJ={adjusted_offset}");
+        // let adjusted_offset = *offset as usize - content_offset;
         let adjusted_offset = *offset as usize - content_offset;
+        eprintln!("ADJUSTED_OFFSET={adjusted_offset}");
         let mut src = &content[adjusted_offset..];
 
         let srclen = src.len();
