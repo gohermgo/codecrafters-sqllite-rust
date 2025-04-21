@@ -105,37 +105,18 @@ fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) ->
     let dbc = fs::File::open(database_path.as_ref())
         .and_then(|mut file| database::read_database(&mut file));
     let dbc = dbc.and_then(database::page::convert::<database::btree::BTreePage>);
+    // TODO: Proper query parsing
+    let split_query = query.as_ref().split_whitespace();
+    eprintln!("SPLIT={split_query:?}");
+    let table_name = split_query.last().expect("Empty SQL query!");
+    eprintln!("INPUT TABLE_NAME={table_name}");
     if let Ok(pages) = dbc {
         let cells = database::page::cells(&pages);
         for (record, page) in cells {
             eprintln!("REC={record:?}");
             eprintln!("PAGE={page:?}");
         }
-        // let database::page::PageCells {
-        //     schema_cells,
-        //     btree_cells,
-        // } = database::page::cells(&pages);
-        // for (idx, schema) in schema_cells.iter().enumerate() {
-        //     eprintln!("[IDX: {idx}] SCHEMA={schema:?}");
-        // }
-        // for (idx, cell) in btree_cells.iter().enumerate() {
-        //     eprintln!("[IDX: {idx}] CELL={cell:X?}");
-        // };
     }
-    // eprintln!("READ DBC={dbc:?}");
-    // TODO: Proper query parsing
-    let split_query = query.as_ref().split_whitespace();
-    eprintln!("SPLIT={split_query:?}");
-    let table_name = split_query.last().expect("Empty SQL query!");
-    eprintln!("INPUT TABLE_NAME={table_name}");
-
-    // for record in read_records::<record::SchemaColumn>(database_path)? {
-    //     eprintln!("RECORD={record:?}");
-    //     record.columns.iter().for_each(|column| {
-    //         eprintln!("TABLE_NAME={}", String::from_utf8_lossy(&column.table_name))
-    //     })
-    // }
-
     Ok(())
 }
 struct SqliteArgs {

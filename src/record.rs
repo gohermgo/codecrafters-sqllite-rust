@@ -194,6 +194,11 @@ impl FromRawColumn for SchemaColumn {
         })
     }
 }
+#[derive(Debug)]
+pub struct SchemaRecord {
+    pub header: RecordHeader,
+    pub column: SchemaColumn,
+}
 pub fn pretty_print_schema_column(
     SchemaColumn {
         r#type,

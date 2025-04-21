@@ -80,8 +80,18 @@ fn root_cells<'p>(
 }
 fn parse_root_cells(
     xs: impl Iterator<Item = btree::BTreeCell>,
-) -> impl Iterator<Item = btree::RecordCell<record::SchemaColumn>> {
-    xs.map_while(|cell| btree::parse_cell(cell).ok())
+) -> impl Iterator<Item = record::SchemaRecord> {
+    xs.map_while(|cell| btree::parse_cell::<record::SchemaColumn>(cell).ok())
+        .map_while(|mut record| {
+            record
+                .record
+                .columns
+                .pop()
+                .map(|column| record::SchemaRecord {
+                    header: record.record.header,
+                    column,
+                })
+        })
 }
 pub struct Database {
     pub schema: Vec<SchemaCell>,
@@ -89,7 +99,7 @@ pub struct Database {
 }
 pub type SchemaCell = DatabaseCell<btree::SchemaRecordCell>;
 pub struct PageCells {
-    pub schema_cells: Vec<btree::RecordCell<record::SchemaColumn>>,
+    pub schema_cells: Vec<record::SchemaRecord>,
     pub btree_cells: Vec<Vec<btree::BTreeCell>>,
 }
 pub fn cells(Pages { root_page, tail }: &Pages<btree::BTreePage>) -> PageCells {
@@ -105,15 +115,13 @@ pub fn cells(Pages { root_page, tail }: &Pages<btree::BTreePage>) -> PageCells {
             .collect(),
     }
 }
+type VecIntoIter<T> = std::vec::IntoIter<T>;
 impl IntoIterator for PageCells {
     type IntoIter = core::iter::Zip<
-        std::vec::IntoIter<btree::RecordCell<record::SchemaColumn>>,
+        std::vec::IntoIter<record::SchemaRecord>,
         std::vec::IntoIter<Vec<btree::BTreeCell>>,
     >;
-    type Item = (
-        btree::RecordCell<record::SchemaColumn>,
-        Vec<btree::BTreeCell>,
-    );
+    type Item = (record::SchemaRecord, Vec<btree::BTreeCell>);
     fn into_iter(self) -> Self::IntoIter {
         self.schema_cells.into_iter().zip(self.btree_cells)
     }
