@@ -76,7 +76,8 @@ fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) ->
             let name = String::from_utf8_lossy(&record.column.name);
             if name == table_name {
                 eprintln!("FOUND MATCH FOR TABLE {table_name}");
-                println!("{}", page.len())
+                println!("{}", page.len());
+                eprintln!("{:?}", page);
             }
         }
     }
