@@ -80,7 +80,13 @@ fn root_cells<'p>(
 ) -> impl Iterator<Item = PageContent<btree::BTreeCell>> + 'p {
     eprintln!("READING ROOT CELLS");
     eprintln!("ROOTPAGE_DATA={:?}", tail.content);
+    let nzi = tail
+        .content
+        .iter()
+        .enumerate()
+        .find_map(|(idx, elt)| elt.ne(&0).then_some(idx));
     eprintln!("ROOTPAGE_STR={:?}", String::from_utf8_lossy(&tail.content));
+    eprintln!("FIRST NONZERO={nzi:?}");
     btree::read_cells(
         tail,
         core::mem::size_of_val(database_header),
