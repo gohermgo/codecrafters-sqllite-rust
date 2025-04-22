@@ -172,60 +172,42 @@ pub struct Database {
     pub schema_cells: Vec<record::SchemaRecord>,
     pub record_cells: Vec<Vec<record::SerializedRecord>>,
 }
-// fn open_inner(database_path: impl AsRef<Path>) -> io::Result<>
-// fn cells_to_database(pages: Pages<btree::BTreePage>) ->
+fn pages_to_database(pages: Pages<btree::BTreePage>) -> Database {
+    fn read_record_bytes(mut bytes: &[u8]) -> Option<record::RecordBytes<'_>> {
+        let header = record::read_header(&mut bytes).ok()?;
+        Some(record::RecordBytes { header, bytes })
+    }
+    fn serialize_record_bytes(
+        record::RecordBytes { header, mut bytes }: record::RecordBytes,
+    ) -> record::SerializedRecord {
+        let serial_types = header.serial_types.iter();
+        let column = record::read_raw_column(&mut bytes, serial_types);
+        record::SerializedRecord { header, column }
+    }
+    fn serialize_row(row: Vec<btree::BTreeCell>) -> Vec<record::SerializedRecord> {
+        row.iter()
+            .filter_map(get_cell_content)
+            .inspect(|bytes| eprintln!("BYTES={bytes:X?}"))
+            .filter_map(read_record_bytes)
+            .inspect(|b @ record::RecordBytes { bytes, .. }| {
+                eprintln!("RECORD_BYTES={b:X?}");
+                eprintln!("RECORD_STRING={:?}", String::from_utf8_lossy(bytes))
+            })
+            .map(serialize_record_bytes)
+            .collect()
+    }
+    let PageCells {
+        schema_cells,
+        btree_cells,
+    } = page::cells(&pages);
+    Database {
+        header: pages.root_page.database_header,
+        schema_cells,
+        record_cells: btree_cells.into_iter().map(serialize_row).collect(),
+    }
+}
 pub fn open(database_path: impl AsRef<Path>) -> io::Result<Database> {
     fs::File::open(database_path)
         .and_then(|mut file| page::read(&mut file).and_then(page::convert))
-        .map(|pages: Pages<btree::BTreePage>| {
-            let PageCells {
-                schema_cells,
-                btree_cells,
-            } = page::cells(&pages);
-            let record_cells = btree_cells
-                .into_iter()
-                .map(|elt| {
-                    elt.iter()
-                        .filter_map(get_cell_content)
-                        .inspect(|bytes| eprintln!("BYTES={bytes:X?}"))
-                        .filter_map(|mut bytes| {
-                            let header = record::read_header(&mut bytes).ok()?;
-                            Some(record::RecordBytes { header, bytes })
-                        })
-                        .inspect(|bytes| {
-                            eprintln!("RECORD_BYTES={bytes:X?}");
-                        })
-                        .inspect(|record::RecordBytes { bytes, .. }| {
-                            eprintln!("RECORD_STRING={:?}", String::from_utf8_lossy(bytes))
-                        })
-                        .map(|record::RecordBytes { header, mut bytes }| {
-                            let serial_types = header.serial_types.iter();
-                            let column = record::read_raw_column(&mut bytes, serial_types);
-                            record::SerializedRecord { header, column }
-                        })
-                        .collect()
-                })
-                .collect();
-            Database {
-                header: pages.root_page.database_header,
-                schema_cells,
-                record_cells,
-            }
-            // let page_cells= page::cells(&pages);
-            // let rcs = page_cells.into_iter().map(|(schema, elt)| {
-            //     let cell_content = elt.iter().filter_map(get_cell_content);
-            //      cell_content
-            //         .inspect(|bytes| eprintln!("BYTES={bytes:X?}"))
-            //         .filter_map(|mut bytes| {
-            //             let header = record::read_header(&mut bytes).ok()?;
-            //             Some(record::RecordBytes { header, bytes })
-            //         })
-            // });
-            // let cell_content = btree_cells.iter().filter_map(|elt|)
-            // Database {
-            //     header: pages.root_page.database_header,
-            //     schema_cells,
-            //     page_cells,
-            // }
-        })
+        .map(pages_to_database)
 }
