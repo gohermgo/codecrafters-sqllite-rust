@@ -42,6 +42,7 @@ pub fn is_string_serial_type(serial_type_value: u64) -> bool {
 pub fn string_serial_type_size(serial_type_value: u64) -> usize {
     (serial_type_value as usize - 13) / 2
 }
+#[allow(dead_code)]
 fn serial_type_size(serial_type: &Varint) -> usize {
     const NULL_SERIAL_TYPE: u64 = 0;
     const EIGHT_BIT_SERIAL_TYPE: u64 = 1;
@@ -98,19 +99,19 @@ pub fn read_value<R: io::Read>(r: &mut R, serial_type: &Varint) -> io::Result<Re
         _ => todo!(),
     }
 }
-#[derive(Debug)]
-pub struct RecordRow {
-    pub xs: Vec<RecordValue>,
-}
-pub fn read_element<R: io::Read>(r: &mut R, serial_type: &Varint) -> io::Result<RecordElement> {
-    let size = serial_type_size(serial_type);
-    if size > 0 {
-        io::read_exact_vec(r, size)
-    } else {
-        Ok(vec![])
-    }
-    .map(RecordElement)
-}
+// #[derive(Debug)]
+// pub struct RecordRow {
+//     pub xs: Vec<RecordValue>,
+// }
+// pub fn read_element<R: io::Read>(r: &mut R, serial_type: &Varint) -> io::Result<RecordElement> {
+//     let size = serial_type_size(serial_type);
+//     if size > 0 {
+//         io::read_exact_vec(r, size)
+//     } else {
+//         Ok(vec![])
+//     }
+//     .map(RecordElement)
+// }
 #[derive(Debug)]
 pub struct RawColumn {
     pub cells: Vec<RecordValue>,

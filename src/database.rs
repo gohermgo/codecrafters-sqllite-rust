@@ -11,7 +11,7 @@ use crate::record;
 
 const HEADER_STRING_SIZE: usize = 16;
 const HEADER_RESERVED_SIZE: usize = 20;
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct DatabaseHeader {
     /// The header string: "SQLite format 3\000"
@@ -121,51 +121,6 @@ fn read_header<R: io::Read>(r: &mut R) -> io::Result<DatabaseHeader> {
     let header: DatabaseHeader = unsafe { core::mem::transmute(buf) };
     Ok(header.to_be())
 }
-pub trait Page<T> {
-    fn tail_ref(&self) -> &T;
-    fn tail_mut(&mut self) -> &mut T;
-}
-#[derive(Debug)]
-pub struct DatabaseContent<T> {
-    pub root_page: page::RootPage<T>,
-    pub tail: Vec<T>,
-}
-#[derive(Debug)]
-pub struct DatabaseTable(pub Vec<u8>);
-fn read_table<R: io::Read>(r: &mut R, page_size: usize) -> io::Result<DatabaseTable> {
-    eprintln!("READING TABLE={page_size}");
-    let mut data = vec![0; page_size];
-    io::Read::read_exact(r, data.as_mut_slice())?;
-    eprintln!("READ TABLE SUCCESS");
-    Ok(DatabaseTable(data))
-}
-#[derive(Debug)]
-pub struct DatabaseFileContent<D> {
-    pub header: DatabaseHeader,
-    pub content: D,
-}
-pub fn read<R: io::Read + 'static>(
-    r: R,
-) -> io::Result<DatabaseFileContent<impl Iterator<Item = DatabaseTable>>> {
-    read_with(r, move |r, page_size| read_table(r, page_size).ok())
-}
-pub fn read_with<T, R: io::Read + 'static>(
-    mut r: R,
-    mut f: impl FnMut(&mut R, usize) -> Option<T> + 'static,
-) -> io::Result<DatabaseFileContent<impl Iterator<Item = T>>> {
-    read_header(&mut r).map(move |header| {
-        eprintln!("Read header {header:?}");
-        let page_size = header.page_size as usize;
-        let mut read = 0;
-        let content = core::iter::from_fn(move || {
-            read += 1;
-            eprintln!("READING PAGE {read}");
-            f(&mut r, page_size)
-        });
-        DatabaseFileContent { header, content }
-    })
-}
-
 #[derive(Debug)]
 pub struct Database {
     pub header: DatabaseHeader,

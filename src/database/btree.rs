@@ -2,8 +2,6 @@ use core::fmt;
 
 use std::error::Error;
 
-use crate::database::page::{FromRawPage, RawPage};
-
 use crate::{io, record::FromRawColumn};
 use crate::{record, Record};
 use crate::{varint, Varint};
@@ -165,6 +163,7 @@ fn size_of_cell_pointer_array(BTreeCellPointerArray(xs): &BTreeCellPointerArray)
 pub struct BTreePageInner {
     pub header: BTreePageHeader,
     pub cell_pointers: BTreeCellPointerArray,
+    #[allow(dead_code)]
     pub reserved_area: Vec<u8>,
 }
 fn read_page_inner<R: io::Read>(r: &mut R) -> io::Result<BTreePageInner> {
@@ -188,24 +187,18 @@ fn read_page_inner<R: io::Read>(r: &mut R) -> io::Result<BTreePageInner> {
     })
 }
 #[derive(Debug)]
-struct BTreePageIter<I> {
-    pub header: BTreePageHeader,
-    pub cell_pointers: BTreeCellPointer,
-    pub reserved_area: Vec<u8>,
-    pub content: I,
-}
-#[derive(Debug)]
-pub struct BTreePageBytes {
-    pub inner: BTreePageInner,
-    pub content: Vec<u8>,
-}
-#[derive(Debug)]
 pub struct BTreePage {
+    #[allow(dead_code)]
     pub inner: BTreePageInner,
     pub content: Vec<BTreeCell>,
 }
 
 pub fn read_page<R: io::Read>(r: &mut R, initial_offset: usize) -> io::Result<BTreePage> {
+    #[derive(Debug)]
+    pub struct BTreePageBytes {
+        pub inner: BTreePageInner,
+        pub content: Vec<u8>,
+    }
     fn parse_page_bytes(
         BTreePageBytes { inner, content }: BTreePageBytes,
         initial_offset: usize,
@@ -243,39 +236,6 @@ pub fn read_page<R: io::Read>(r: &mut R, initial_offset: usize) -> io::Result<BT
         })
         .map(|btree_page_bytes| parse_page_bytes(btree_page_bytes, initial_offset))
 }
-// impl FromRawPage for BTreePageBytes {
-//     fn from_raw_page(RawPage(page_data): RawPage) -> io::Result<Self>
-//     where
-//         Self: Sized,
-//     {
-//         read_page_bytes(&mut page_data.as_slice())
-//     }
-// }
-pub fn read_cells<'p>(
-    BTreePageBytes {
-        inner:
-            BTreePageInner {
-                header:
-                    header @ BTreePageHeader {
-                        inner: BTreePageHeaderInner { r#type, .. },
-                        ..
-                    },
-                cell_pointers: cell_pointers @ BTreeCellPointerArray(cells),
-                ..
-            },
-        content,
-        ..
-    }: &'p BTreePageBytes,
-    initial_offset: usize,
-) -> impl Iterator<Item = BTreeCell> + 'p {
-    let content_offset =
-        size_of_page_header(header) + size_of_cell_pointer_array(cell_pointers) + initial_offset;
-    cells.iter().filter_map(move |BTreeCellPointer(offset)| {
-        let adjusted_offset = *offset as usize - content_offset;
-        let mut src = &content[adjusted_offset..];
-        read_cell(&mut src, *r#type).ok()
-    })
-}
 pub fn parse_cell<C: FromRawColumn>(cell: BTreeCell) -> io::Result<RecordCell<C>> {
     match cell {
         BTreeCell::LeafTable(BTreeLeafTableCell {
@@ -290,6 +250,7 @@ pub fn parse_cell<C: FromRawColumn>(cell: BTreeCell) -> io::Result<RecordCell<C>
 
 #[derive(Debug)]
 pub struct BTreeLeafTableCell {
+    #[allow(dead_code)]
     /// A [`Varint`] which is the total number
     /// of bytes of payload, including overflow
     pub total_payload_bytes: Varint,
@@ -301,6 +262,7 @@ pub struct BTreeLeafTableCell {
     /// Integer page number for the first page
     /// of the overflow page list - omitted if
     /// all payload fits on the b-tree page
+    #[allow(dead_code)]
     pub first_overflow_page_number: Option<u32>,
 }
 fn read_leaf_table_cell<R: io::Read>(r: &mut R) -> io::Result<BTreeLeafTableCell> {
@@ -330,6 +292,7 @@ pub fn get_cell_content(cell: &BTreeCell) -> Option<&[u8]> {
         // _ => None,
     }
 }
+#[allow(dead_code)]
 pub fn print_cell_rowid(cell: &BTreeCell) {
     match cell {
         BTreeCell::LeafTable(BTreeLeafTableCell { rowid, .. }) => {
@@ -345,33 +308,13 @@ fn read_cell<R: io::Read>(r: &mut R, r#type: BTreePageType) -> io::Result<BTreeC
 }
 #[derive(Debug)]
 pub struct RecordCell<C> {
+    #[allow(dead_code)]
     pub rowid: Varint,
     pub record: Record<C>,
 }
+#[allow(dead_code)]
 #[repr(transparent)]
 pub struct TableBTreeInteriorCell {
     /// A big-endian number which is the left child pointer
     pub page_number: u32,
 }
-
-// #[derive(Debug)]
-// pub struct Schema {
-//     pub size: Varint,
-//     pub r#type: Vec<u8>,
-//     pub name: Vec<u8>,
-//     pub table_name: Vec<u8>,
-//     pub rootpage: u8,
-//     pub sql: Vec<u8>,
-// }
-// pub fn read_schema(
-//     Record { header, columns }: Record<RawColumn>,
-// ) -> io::Result<Record<SchemaColumn>> {
-//     eprintln!("\n\nREAD SCHEMA");
-//     Ok(Record {
-//         header,
-//         columns: columns
-//             .into_iter()
-//             .filter_map(|elt| SchemaColumn::from_raw_column(elt).ok())
-//             .collect(),
-//     })
-// }
