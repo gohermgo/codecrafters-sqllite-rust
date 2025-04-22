@@ -1,3 +1,8 @@
+use core::iter::{once, Chain, Once};
+use core::slice::Iter;
+
+use std::vec::IntoIter;
+
 use crate::io;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -7,37 +12,19 @@ pub struct Varint {
 }
 impl<'a> IntoIterator for &'a Varint {
     type Item = &'a u8;
-    type IntoIter = Iter<'a>;
+    type IntoIter = Chain<Once<&'a u8>, Iter<'a, u8>>;
     fn into_iter(self) -> Self::IntoIter {
-        Iter(core::iter::once(&self.a0).chain(self.tail.iter()))
-    }
-}
-pub struct Iter<'a>(core::iter::Chain<core::iter::Once<&'a u8>, std::slice::Iter<'a, u8>>);
-impl<'a> Iterator for Iter<'a> {
-    type Item = &'a u8;
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next()
+        let Varint { a0, tail } = self;
+        once(a0).chain(tail)
     }
 }
 impl IntoIterator for Varint {
     type Item = u8;
-    type IntoIter = IntoIter;
+    type IntoIter = Chain<Once<u8>, IntoIter<u8>>;
     fn into_iter(self) -> Self::IntoIter {
-        IntoIter(core::iter::once(self.a0).chain(self.tail))
+        let Varint { a0, tail } = self;
+        once(a0).chain(tail)
     }
-}
-pub fn iter(Varint { a0, tail }: &Varint) -> impl Iterator<Item = &u8> {
-    core::iter::once(a0).chain(tail.iter())
-}
-pub struct IntoIter(core::iter::Chain<core::iter::Once<u8>, std::vec::IntoIter<u8>>);
-impl Iterator for IntoIter {
-    type Item = u8;
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next()
-    }
-}
-pub fn into_iter(Varint { a0, tail }: Varint) -> impl Iterator<Item = u8> {
-    core::iter::once(a0).chain(tail)
 }
 pub fn len(Varint { tail, .. }: &Varint) -> usize {
     tail.len() + 1
@@ -76,6 +63,16 @@ pub fn value_of(varint: &Varint) -> u64 {
         let elt = elt << (7 * (count - idx - 1));
         elt | acc
     })
+}
+impl From<Varint> for u64 {
+    fn from(value: Varint) -> Self {
+        value_of(&value)
+    }
+}
+impl From<&Varint> for u64 {
+    fn from(value: &Varint) -> Self {
+        value_of(value)
+    }
 }
 pub fn size_of(Varint { a0, tail }: &Varint) -> usize {
     core::mem::size_of_val(a0) + tail.len()

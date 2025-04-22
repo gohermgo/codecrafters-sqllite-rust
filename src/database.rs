@@ -197,17 +197,18 @@ fn pages_to_database(pages: Pages<btree::BTreePage>) -> Database {
             .collect()
     }
     let PageCells {
+        database_header,
         schema_cells,
         btree_cells,
-    } = page::cells(&pages);
+    } = page::cells(pages);
     Database {
-        header: pages.root_page.database_header,
+        header: database_header,
         schema_cells,
         record_cells: btree_cells.into_iter().map(serialize_row).collect(),
     }
 }
 pub fn open(database_path: impl AsRef<Path>) -> io::Result<Database> {
     fs::File::open(database_path)
-        .and_then(|mut file| page::read(&mut file).and_then(page::convert))
+        .and_then(|mut file| page::read(&mut file))
         .map(pages_to_database)
 }

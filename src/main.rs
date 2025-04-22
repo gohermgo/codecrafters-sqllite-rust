@@ -17,10 +17,10 @@ pub struct Command<'a> {
 pub const COMMAND_COUNT: usize = 1;
 pub const COMMANDS: [Command<'_>; COMMAND_COUNT] = [Command { name: "dbinfo" }];
 
-pub mod database;
-pub mod io;
-pub mod record;
-pub mod varint;
+mod database;
+mod io;
+mod record;
+mod varint;
 
 pub use record::{Record, RecordElement, RecordHeader, RecordValue};
 pub use varint::Varint;

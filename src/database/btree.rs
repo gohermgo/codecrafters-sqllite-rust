@@ -162,56 +162,110 @@ fn size_of_cell_pointer_array(BTreeCellPointerArray(xs): &BTreeCellPointerArray)
     xs.len() * core::mem::size_of::<BTreeCellPointer>()
 }
 #[derive(Debug)]
-pub struct BTreePage {
+pub struct BTreePageInner {
     pub header: BTreePageHeader,
     pub cell_pointers: BTreeCellPointerArray,
     pub reserved_area: Vec<u8>,
-    pub content: Vec<u8>,
 }
-pub fn read_page<R: io::Read>(r: &mut R) -> io::Result<BTreePage> {
+fn read_page_inner<R: io::Read>(r: &mut R) -> io::Result<BTreePageInner> {
+    eprintln!("READING BTREE PAGE INNER");
     let header = read_page_header(r)?;
-    eprintln!("Read page with header {header:?}");
-    eprintln!("Header size is {}", size_of_page_header(&header));
+    eprintln!(
+        "BTREE PAGE HEADER={header:X?};HEADER SIZE={}",
+        size_of_page_header(&header)
+    );
     let cell_pointers = read_cell_pointer_array(r, header.inner.cell_count as usize)?;
     eprintln!(
-        "Size of cell-pointer array is {}",
+        "CELL POINTERS={cell_pointers:?};CELL POINTERS SIZE={}",
         size_of_cell_pointer_array(&cell_pointers)
     );
-    // let currently_read = size_of_page_header(&header) + size_of_cell_pointer_array(&cell_pointers);
-    // let adjusted_offset = header.inner.content_area_start as usize - currently_read;
-    // eprintln!("Adjusted offset is {adjusted_offset}");
     // TODO: Make this actually use the DB-header to calculate and read etc etc
     let reserved_area = vec![];
-
-    let mut content = vec![];
-    io::Read::read_to_end(r, &mut content)?;
-
-    Ok(BTreePage {
+    Ok(BTreePageInner {
         header,
         cell_pointers,
         reserved_area,
-        content,
     })
 }
-impl FromRawPage for BTreePage {
-    fn from_raw_page(RawPage(page_data): RawPage) -> io::Result<Self>
-    where
-        Self: Sized,
-    {
-        read_page(&mut page_data.as_slice())
-    }
+#[derive(Debug)]
+struct BTreePageIter<I> {
+    pub header: BTreePageHeader,
+    pub cell_pointers: BTreeCellPointer,
+    pub reserved_area: Vec<u8>,
+    pub content: I,
 }
+#[derive(Debug)]
+pub struct BTreePageBytes {
+    pub inner: BTreePageInner,
+    pub content: Vec<u8>,
+}
+#[derive(Debug)]
+pub struct BTreePage {
+    pub inner: BTreePageInner,
+    pub content: Vec<BTreeCell>,
+}
+
+pub fn read_page<R: io::Read>(r: &mut R, initial_offset: usize) -> io::Result<BTreePage> {
+    fn parse_page_bytes(
+        BTreePageBytes { inner, content }: BTreePageBytes,
+        initial_offset: usize,
+    ) -> BTreePage {
+        let BTreePageInner {
+            header,
+            cell_pointers,
+            ..
+        } = &inner;
+
+        let BTreePageHeader {
+            inner: BTreePageHeaderInner { r#type, .. },
+            ..
+        } = header;
+        let content_offset = size_of_page_header(header)
+            + size_of_cell_pointer_array(cell_pointers)
+            + initial_offset;
+        let BTreeCellPointerArray(cell_pointers) = cell_pointers;
+        let content = cell_pointers
+            .iter()
+            .filter_map(move |BTreeCellPointer(offset)| {
+                let adjusted_offset = *offset as usize - content_offset;
+                let mut src = &content[adjusted_offset..];
+                read_cell(&mut src, *r#type).ok()
+            })
+            .collect();
+        BTreePage { inner, content }
+    }
+
+    read_page_inner(r)
+        .and_then(|inner| {
+            let mut content = vec![];
+            io::Read::read_to_end(r, &mut content)?;
+            Ok(BTreePageBytes { inner, content })
+        })
+        .map(|btree_page_bytes| parse_page_bytes(btree_page_bytes, initial_offset))
+}
+// impl FromRawPage for BTreePageBytes {
+//     fn from_raw_page(RawPage(page_data): RawPage) -> io::Result<Self>
+//     where
+//         Self: Sized,
+//     {
+//         read_page_bytes(&mut page_data.as_slice())
+//     }
+// }
 pub fn read_cells<'p>(
-    BTreePage {
-        cell_pointers: cell_pointers @ BTreeCellPointerArray(cells),
-        content,
-        header:
-            header @ BTreePageHeader {
-                inner: BTreePageHeaderInner { r#type, .. },
+    BTreePageBytes {
+        inner:
+            BTreePageInner {
+                header:
+                    header @ BTreePageHeader {
+                        inner: BTreePageHeaderInner { r#type, .. },
+                        ..
+                    },
+                cell_pointers: cell_pointers @ BTreeCellPointerArray(cells),
                 ..
             },
+        content,
         ..
-    }: &'p BTreePage,
+    }: &'p BTreePageBytes,
     initial_offset: usize,
 ) -> impl Iterator<Item = BTreeCell> + 'p {
     let content_offset =
