@@ -45,9 +45,14 @@ fn main() -> Result<()> {
     Ok(())
 }
 fn db_info_command(database_path: impl AsRef<Path>) -> io::Result<()> {
-    if let Ok(database::Database { header, page_cells }) = database::open(database_path) {
+    if let Ok(database::Database {
+        header,
+        record_cells,
+        ..
+    }) = database::open(database_path)
+    {
         println!("database page size: {}", header.page_size);
-        let number_of_tables = page_cells.btree_cells.len();
+        let number_of_tables = record_cells.len();
         println!("number of tables: {number_of_tables}");
     }
     // let database = fs::File::open(database_path).and_then(database::read)?;
@@ -57,9 +62,9 @@ fn db_info_command(database_path: impl AsRef<Path>) -> io::Result<()> {
     Ok(())
 }
 fn tables_command(database_path: impl AsRef<Path>) -> io::Result<()> {
-    if let Ok(database::Database { page_cells, .. }) = database::open(database_path) {
-        for (record, _) in page_cells {
-            println!("{}", String::from_utf8_lossy(&record.column.table_name));
+    if let Ok(database::Database { schema_cells, .. }) = database::open(database_path) {
+        for schema in schema_cells {
+            println!("{}", String::from_utf8_lossy(&schema.column.table_name));
         }
     }
     Ok(())
@@ -70,46 +75,42 @@ fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) ->
     eprintln!("SPLIT={split_query:?}");
     let table_name = split_query.last().expect("Empty SQL query!");
     eprintln!("INPUT TABLE_NAME={table_name}");
-    if let Ok(database::Database { page_cells, .. }) = database::open(database_path) {
+    if let Ok(database::Database {
+        schema_cells,
+        record_cells,
+        ..
+    }) = database::open(database_path)
+    {
         // let cells = database::page::cells(&pages);
-        for (record, page) in page_cells {
+        for (record, page) in schema_cells.iter().zip(record_cells) {
             let name = String::from_utf8_lossy(&record.column.name);
-            #[derive(Debug)]
-            struct RecordBytes<'a> {
-                pub header: RecordHeader,
-                pub bytes: &'a [u8],
-            }
-            #[derive(Debug)]
-            struct SerializedRecord {
-                pub header: RecordHeader,
-                pub column: record::RawColumn,
-            }
             if name == table_name {
                 eprintln!("FOUND MATCH FOR TABLE {table_name}");
                 println!("{}", page.len());
                 eprintln!("{:?}", page);
-                let cell_content = page.iter().filter_map(database::get_cell_content);
-                let record_bytes = cell_content
-                    .inspect(|bytes| eprintln!("BYTES={bytes:X?}"))
-                    .filter_map(|mut bytes| {
-                        let header = record::read_header(&mut bytes).ok()?;
-                        Some(RecordBytes { header, bytes })
-                    });
-                for rec in record_bytes
-                    .inspect(|bytes| {
-                        eprintln!("RECORD_BYTES={bytes:X?}");
-                    })
-                    .inspect(|RecordBytes { bytes, .. }| {
-                        eprintln!("RECORD_STRING={:?}", String::from_utf8_lossy(bytes))
-                    })
-                    .map(|RecordBytes { header, mut bytes }| {
-                        let serial_types = header.serial_types.iter();
-                        let column = record::read_raw_column(&mut bytes, serial_types);
-                        SerializedRecord { header, column }
-                    })
-                {
-                    eprintln!("CONTENT={:?}", rec)
-                }
+                eprintln!("PAGE={page:?}");
+                // let cell_content = page.iter().filter_map(database::get_cell_content);
+                // let record_bytes = cell_content
+                //     .inspect(|bytes| eprintln!("BYTES={bytes:X?}"))
+                //     .filter_map(|mut bytes| {
+                //         let header = record::read_header(&mut bytes).ok()?;
+                //         Some(RecordBytes { header, bytes })
+                //     });
+                // for rec in record_bytes
+                //     .inspect(|bytes| {
+                //         eprintln!("RECORD_BYTES={bytes:X?}");
+                //     })
+                //     .inspect(|RecordBytes { bytes, .. }| {
+                //         eprintln!("RECORD_STRING={:?}", String::from_utf8_lossy(bytes))
+                //     })
+                //     .map(|RecordBytes { header, mut bytes }| {
+                //         let serial_types = header.serial_types.iter();
+                //         let column = record::read_raw_column(&mut bytes, serial_types);
+                //         SerializedRecord { header, column }
+                //     })
+                // {
+                //     eprintln!("CONTENT={:?}", rec)
+                // }
             }
         }
     }

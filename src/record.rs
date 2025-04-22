@@ -214,3 +214,13 @@ pub fn pretty_print_schema_column(
     eprintln!("ROOTPAGE={}", rootpage);
     eprintln!("SQL={}", String::from_utf8_lossy(sql));
 }
+#[derive(Debug)]
+pub struct RecordBytes<'a> {
+    pub header: RecordHeader,
+    pub bytes: &'a [u8],
+}
+#[derive(Debug)]
+pub struct SerializedRecord {
+    pub header: RecordHeader,
+    pub column: RawColumn,
+}

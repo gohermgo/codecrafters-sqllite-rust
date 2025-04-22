@@ -7,6 +7,7 @@ mod page;
 pub use page::{PageCells, Pages};
 
 use crate::io;
+use crate::record;
 
 const HEADER_STRING_SIZE: usize = 16;
 const HEADER_RESERVED_SIZE: usize = 20;
@@ -129,27 +130,6 @@ pub struct DatabaseContent<T> {
     pub root_page: page::RootPage<T>,
     pub tail: Vec<T>,
 }
-pub fn read_database<R: io::Read>(r: &mut R) -> io::Result<page::RawPages> {
-    page::read(r)
-    // page::read_root_page(r).map(|root_page| {
-    //     let page_size = root_page.database_header.page_size as usize;
-    //     DatabaseContent {
-    //         root_page,
-    //         tail: core::iter::from_fn(|| page::read_raw_page(r, page_size).ok()).collect(),
-    //     }
-    // })
-}
-// pub fn convert_database<T: page::FromRawPage>(
-//     DatabaseContent { root_page, tail }: DatabaseContent<page::RawPage>,
-// ) -> io::Result<DatabaseContent<T>> {
-//     page::convert_root_page(root_page).map(|root_page| DatabaseContent {
-//         root_page,
-//         tail: tail
-//             .into_iter()
-//             .filter_map(|raw_page| T::from_raw_page(raw_page).ok())
-//             .collect(),
-//     })
-// }
 #[derive(Debug)]
 pub struct DatabaseTable(pub Vec<u8>);
 fn read_table<R: io::Read>(r: &mut R, page_size: usize) -> io::Result<DatabaseTable> {
@@ -185,27 +165,67 @@ pub fn read_with<T, R: io::Read + 'static>(
         DatabaseFileContent { header, content }
     })
 }
+
 #[derive(Debug)]
 pub struct Database {
     pub header: DatabaseHeader,
-    pub page_cells: PageCells,
+    pub schema_cells: Vec<record::SchemaRecord>,
+    pub record_cells: Vec<Vec<record::SerializedRecord>>,
 }
+// fn open_inner(database_path: impl AsRef<Path>) -> io::Result<>
+// fn cells_to_database(pages: Pages<btree::BTreePage>) ->
 pub fn open(database_path: impl AsRef<Path>) -> io::Result<Database> {
     fs::File::open(database_path)
-        .and_then(|mut file| read_database(&mut file))
-        .and_then(page::convert::<btree::BTreePage>)
-        .map(|pages| {
-            let page_cells = page::cells(&pages);
+        .and_then(|mut file| page::read(&mut file).and_then(page::convert))
+        .map(|pages: Pages<btree::BTreePage>| {
+            let PageCells {
+                schema_cells,
+                btree_cells,
+            } = page::cells(&pages);
+            let record_cells = btree_cells
+                .into_iter()
+                .map(|elt| {
+                    elt.iter()
+                        .filter_map(get_cell_content)
+                        .inspect(|bytes| eprintln!("BYTES={bytes:X?}"))
+                        .filter_map(|mut bytes| {
+                            let header = record::read_header(&mut bytes).ok()?;
+                            Some(record::RecordBytes { header, bytes })
+                        })
+                        .inspect(|bytes| {
+                            eprintln!("RECORD_BYTES={bytes:X?}");
+                        })
+                        .inspect(|record::RecordBytes { bytes, .. }| {
+                            eprintln!("RECORD_STRING={:?}", String::from_utf8_lossy(bytes))
+                        })
+                        .map(|record::RecordBytes { header, mut bytes }| {
+                            let serial_types = header.serial_types.iter();
+                            let column = record::read_raw_column(&mut bytes, serial_types);
+                            record::SerializedRecord { header, column }
+                        })
+                        .collect()
+                })
+                .collect();
             Database {
                 header: pages.root_page.database_header,
-                page_cells,
+                schema_cells,
+                record_cells,
             }
+            // let page_cells= page::cells(&pages);
+            // let rcs = page_cells.into_iter().map(|(schema, elt)| {
+            //     let cell_content = elt.iter().filter_map(get_cell_content);
+            //      cell_content
+            //         .inspect(|bytes| eprintln!("BYTES={bytes:X?}"))
+            //         .filter_map(|mut bytes| {
+            //             let header = record::read_header(&mut bytes).ok()?;
+            //             Some(record::RecordBytes { header, bytes })
+            //         })
+            // });
+            // let cell_content = btree_cells.iter().filter_map(|elt|)
+            // Database {
+            //     header: pages.root_page.database_header,
+            //     schema_cells,
+            //     page_cells,
+            // }
         })
-    // fs::File::open(database_path).and_then(read).map(|DatabaseFileContent { header, content }| {
-    //     let content = content.filter_map(|DatabaseTable(content)| btree::read_page(&mut content.as_slice()).ok()).flat_map(|elt| btree::read_cells(elt, ));
-    // })
-    // let DatabaseFileContent { header, content } = fs::File::open(database_path).and_then(read)?;
-    // let btree_pages = content.filter_map(|database::DatabaseTable(content)| {
-    //     btree::read_page(&mut content.as_slice()).ok()
-    // });
 }
