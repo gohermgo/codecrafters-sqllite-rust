@@ -2,8 +2,9 @@ use core::fmt;
 
 use std::error::Error;
 
-use crate::{io, record::FromRawColumn};
-use crate::{record, Record};
+use crate::database::record::{self, FromRawColumn, Record};
+
+use crate::io;
 use crate::{varint, Varint};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]

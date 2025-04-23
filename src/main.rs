@@ -19,10 +19,8 @@ pub const COMMANDS: [Command<'_>; COMMAND_COUNT] = [Command { name: "dbinfo" }];
 
 mod database;
 mod io;
-mod record;
 mod varint;
 
-pub use record::{Record, RecordElement, RecordHeader, RecordValue};
 pub use varint::Varint;
 
 fn main() -> Result<()> {

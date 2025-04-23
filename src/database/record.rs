@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::io;
 use crate::{varint, Varint};
 #[derive(Debug)]
@@ -166,7 +168,35 @@ pub struct SchemaColumn {
     pub name: Vec<u8>,
     pub table_name: Vec<u8>,
     pub rootpage: u8,
-    pub sql: Vec<u8>,
+    pub sql: Sql,
+}
+#[derive(Debug)]
+pub struct Sql {
+    pub name: String,
+    pub signature: HashMap<String, String>,
+}
+fn schema_sql(sql_bytes: Vec<u8>) -> io::Result<Sql> {
+    let sql_string =
+        String::from_utf8(sql_bytes).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+    let remainder = sql_string
+        .strip_prefix("CREATE TABLE")
+        .ok_or(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "Expected more SQL string segments",
+        ))?;
+    let (name, signature_str) = remainder.split_once(' ').ok_or(io::Error::new(
+        io::ErrorKind::InvalidData,
+        "Failed to split to name and signature group",
+    ))?;
+    let name = name.to_string();
+    let signature_str = signature_str.trim_start_matches('(').trim_end_matches(')');
+    let signature_pieces = signature_str.split(',');
+    let signature_pieces = signature_pieces.map_while(|elt| {
+        elt.split_once(' ')
+            .map(|(fst, snd)| (fst.to_string(), snd.to_string()))
+    });
+    let signature = HashMap::from_iter(signature_pieces);
+    Ok(Sql { name, signature })
 }
 impl FromRawColumn for SchemaColumn {
     fn from_raw_column(column: RawColumn) -> io::Result<Self>
@@ -185,7 +215,7 @@ impl FromRawColumn for SchemaColumn {
         let name = next().and_then(lift_encoded_string)?;
         let table_name = next().and_then(lift_encoded_string)?;
         let rootpage = next().and_then(lift_twos_complement_8)?;
-        let sql = next().and_then(lift_encoded_string)?;
+        let sql = next().and_then(lift_encoded_string).and_then(schema_sql)?;
         Ok(SchemaColumn {
             r#type,
             name,
@@ -213,7 +243,7 @@ pub fn pretty_print_schema_column(
     eprintln!("NAME={}", String::from_utf8_lossy(name));
     eprintln!("TABLE_NAME={}", String::from_utf8_lossy(table_name));
     eprintln!("ROOTPAGE={}", rootpage);
-    eprintln!("SQL={}", String::from_utf8_lossy(sql));
+    eprintln!("SQL={:?}", sql);
 }
 #[derive(Debug)]
 pub struct RecordBytes<'a> {

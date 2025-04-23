@@ -2,12 +2,12 @@ use core::ffi::c_char;
 use std::{fs, path::Path};
 
 mod btree;
+mod record;
 pub use btree::get_cell_content;
 mod page;
 pub use page::{PageCells, Pages};
 
 use crate::io;
-use crate::record;
 
 const HEADER_STRING_SIZE: usize = 16;
 const HEADER_RESERVED_SIZE: usize = 20;

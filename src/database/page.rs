@@ -4,9 +4,9 @@ use std::vec::IntoIter;
 
 use crate::database;
 use crate::database::btree::{self, BTreeCell, BTreePage};
+use crate::database::record::{SchemaColumn, SchemaRecord};
 use crate::database::DatabaseHeader;
 use crate::io;
-use crate::record::{SchemaColumn, SchemaRecord};
 
 #[derive(Debug)]
 pub struct RootPage<T> {
