@@ -81,6 +81,7 @@ fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) ->
     {
         // let cells = database::page::cells(&pages);
         for (record, page) in schema_cells.iter().zip(record_cells) {
+            eprintln!("RECORD={record:?}");
             let name = String::from_utf8_lossy(&record.column.name);
             if name == table_name {
                 eprintln!("FOUND MATCH FOR TABLE {table_name}");
