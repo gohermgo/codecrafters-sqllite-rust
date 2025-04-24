@@ -1,7 +1,9 @@
-use std::collections::HashMap;
-
 use crate::io;
 use crate::{varint, Varint};
+
+mod schema;
+pub use schema::{SchemaColumn, SchemaRecord};
+
 #[derive(Debug)]
 pub struct RecordHeader {
     pub size: Varint,
@@ -35,8 +37,8 @@ fn read_raw<R: io::Read>(r: &mut R) -> io::Result<RawRecord> {
     eprintln!("RECORD_DATA={}", String::from_utf8_lossy(&data));
     Ok(RawRecord { header, data })
 }
-#[derive(Debug)]
-pub struct RecordElement(pub Vec<u8>);
+// #[derive(Debug)]
+// pub struct RecordElement(pub Vec<u8>);
 pub fn is_string_serial_type(serial_type_value: u64) -> bool {
     let is_even = (serial_type_value % 2) == 0;
     (serial_type_value >= 13) && !is_even
@@ -120,10 +122,11 @@ pub struct RawColumn {
 }
 pub fn read_raw_column<'s, R: io::Read>(
     r: &mut R,
-    serial_types: impl Iterator<Item = &'s Varint>,
+    serial_types: impl IntoIterator<Item = &'s Varint>,
 ) -> RawColumn {
     RawColumn {
         cells: serial_types
+            .into_iter()
             .map_while(|serial_type| read_value(r, serial_type).ok())
             .collect(),
     }
@@ -163,95 +166,31 @@ pub fn read<R: io::Read, C: FromRawColumn>(r: &mut R) -> io::Result<Record<C>> {
     Ok(Record { header, columns })
 }
 #[derive(Debug)]
-pub struct SchemaColumn {
-    pub r#type: Vec<u8>,
-    pub name: Vec<u8>,
-    pub table_name: Vec<u8>,
-    pub rootpage: u8,
-    pub sql: Sql,
-}
-#[derive(Debug)]
-pub struct Sql {
-    pub name: String,
-    pub signature: HashMap<String, String>,
-}
-fn schema_sql(sql_bytes: Vec<u8>) -> io::Result<Sql> {
-    let sql_string =
-        String::from_utf8(sql_bytes).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-    let remainder = sql_string
-        .strip_prefix("CREATE TABLE")
-        .ok_or(io::Error::new(
-            io::ErrorKind::InvalidData,
-            "Expected more SQL string segments",
-        ))?;
-    let (name, signature_str) = remainder.split_once(' ').ok_or(io::Error::new(
-        io::ErrorKind::InvalidData,
-        "Failed to split to name and signature group",
-    ))?;
-    let name = name.to_string();
-    let signature_str = signature_str.trim_start_matches('(').trim_end_matches(')');
-    let signature_pieces = signature_str.split(',');
-    let signature_pieces = signature_pieces.map_while(|elt| {
-        elt.split_once(' ')
-            .map(|(fst, snd)| (fst.to_string(), snd.to_string()))
-    });
-    let signature = HashMap::from_iter(signature_pieces);
-    Ok(Sql { name, signature })
-}
-impl FromRawColumn for SchemaColumn {
-    fn from_raw_column(column: RawColumn) -> io::Result<Self>
-    where
-        Self: Sized,
-    {
-        let RawColumn { cells } = column;
-        let mut cells = cells.into_iter();
-        let mut next = || {
-            cells.next().ok_or(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "cells ran out when iterating for schema-column",
-            ))
-        };
-        let r#type = next().and_then(lift_encoded_string)?;
-        let name = next().and_then(lift_encoded_string)?;
-        let table_name = next().and_then(lift_encoded_string)?;
-        let rootpage = next().and_then(lift_twos_complement_8)?;
-        let sql = next().and_then(lift_encoded_string).and_then(schema_sql)?;
-        Ok(SchemaColumn {
-            r#type,
-            name,
-            table_name,
-            rootpage,
-            sql,
-        })
-    }
-}
-#[derive(Debug)]
-pub struct SchemaRecord {
-    pub header: RecordHeader,
-    pub column: SchemaColumn,
-}
-pub fn pretty_print_schema_column(
-    SchemaColumn {
-        r#type,
-        name,
-        table_name,
-        rootpage,
-        sql,
-    }: &SchemaColumn,
-) {
-    eprintln!("TYPE={}", String::from_utf8_lossy(r#type));
-    eprintln!("NAME={}", String::from_utf8_lossy(name));
-    eprintln!("TABLE_NAME={}", String::from_utf8_lossy(table_name));
-    eprintln!("ROOTPAGE={}", rootpage);
-    eprintln!("SQL={:?}", sql);
-}
-#[derive(Debug)]
 pub struct RecordBytes<'a> {
     pub header: RecordHeader,
     pub bytes: &'a [u8],
+}
+impl RecordBytes<'_> {
+    pub fn from_bytes(mut bytes: &[u8]) -> Option<RecordBytes<'_>> {
+        read_header(&mut bytes)
+            .map(|header| RecordBytes { header, bytes })
+            .inspect_err(|e| eprintln!("FAILED TO READ HEADER FROM BYTES: {e}"))
+            .ok()
+    }
 }
 #[derive(Debug)]
 pub struct SerializedRecord {
     pub header: RecordHeader,
     pub column: RawColumn,
 }
+impl SerializedRecord {
+    pub fn from_bytes(RecordBytes { header, mut bytes }: RecordBytes) -> SerializedRecord {
+        let column = read_raw_column(&mut bytes, &header.serial_types);
+        SerializedRecord { header, column }
+    }
+}
+// fn serialize_bytes(RecordBytes { header, mut bytes }: RecordBytes) -> SerializedRecord {
+//     let serial_types = header.serial_types.iter();
+//     let column = record::read_raw_column(&mut bytes, serial_types);
+//     record::SerializedRecord { header, column }
+// }

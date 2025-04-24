@@ -4,7 +4,7 @@ use std::vec::IntoIter;
 
 use crate::database;
 use crate::database::btree::{self, BTreeCell, BTreePage};
-use crate::database::record::{SchemaColumn, SchemaRecord};
+use crate::database::record::SchemaRecord;
 use crate::database::DatabaseHeader;
 use crate::io;
 
@@ -55,16 +55,13 @@ pub struct PageCells {
     pub btree_cells: Vec<Vec<btree::BTreeCell>>,
 }
 pub fn cells(Pages { root_page, tail }: Pages<BTreePage>) -> PageCells {
-    use btree::{parse_cell, RecordCell};
+    use btree::RecordCell;
     // use record::{SchemaColumn, SchemaRecord};
     let RootPage {
         database_header,
         tail: root_tail,
     } = root_page;
-    let schema_cells = root_tail
-        .content
-        .into_iter()
-        .map_while(|cell| parse_cell::<SchemaColumn>(cell).ok())
+    let schema_cells = btree::read_root(root_tail)
         .map_while(|RecordCell { rowid, mut record }| {
             eprintln!("ROWID={rowid:?}");
             record.columns.pop().map(|column| SchemaRecord {
@@ -73,11 +70,10 @@ pub fn cells(Pages { root_page, tail }: Pages<BTreePage>) -> PageCells {
             })
         })
         .collect();
-    let btree_cells = tail.into_iter().map(|page| page.content).collect();
     PageCells {
         database_header,
         schema_cells,
-        btree_cells,
+        btree_cells: btree::read_tail(tail).collect(),
     }
 }
 impl IntoIterator for PageCells {

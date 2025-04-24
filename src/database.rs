@@ -128,27 +128,16 @@ pub struct Database {
     pub record_cells: Vec<Vec<record::SerializedRecord>>,
 }
 fn pages_to_database(pages: Pages<btree::BTreePage>) -> Database {
-    fn read_record_bytes(mut bytes: &[u8]) -> Option<record::RecordBytes<'_>> {
-        let header = record::read_header(&mut bytes).ok()?;
-        Some(record::RecordBytes { header, bytes })
-    }
-    fn serialize_record_bytes(
-        record::RecordBytes { header, mut bytes }: record::RecordBytes,
-    ) -> record::SerializedRecord {
-        let serial_types = header.serial_types.iter();
-        let column = record::read_raw_column(&mut bytes, serial_types);
-        record::SerializedRecord { header, column }
-    }
     fn serialize_row(row: Vec<btree::BTreeCell>) -> Vec<record::SerializedRecord> {
         row.iter()
             .filter_map(get_cell_content)
             .inspect(|bytes| eprintln!("BYTES={bytes:X?}"))
-            .filter_map(read_record_bytes)
+            .filter_map(record::RecordBytes::from_bytes)
             .inspect(|b @ record::RecordBytes { bytes, .. }| {
                 eprintln!("RECORD_BYTES={b:X?}");
                 eprintln!("RECORD_STRING={:?}", String::from_utf8_lossy(bytes))
             })
-            .map(serialize_record_bytes)
+            .map(record::SerializedRecord::from_bytes)
             .collect()
     }
     let PageCells {

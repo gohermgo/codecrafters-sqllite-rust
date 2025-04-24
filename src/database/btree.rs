@@ -2,14 +2,14 @@ use core::fmt;
 
 use std::error::Error;
 
-use crate::database::record::{self, FromRawColumn, Record};
+use crate::database::record::{self, FromRawColumn, Record, SchemaColumn};
 
 use crate::io;
 use crate::{varint, Varint};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(u8)]
-pub enum BTreePageType {
+enum BTreePageType {
     InteriorIndex = 0x02,
     InteriorTable = 0x05,
     LeafIndex = 0x0A,
@@ -101,9 +101,9 @@ fn read_page_header_inner<R: io::Read>(
     })
 }
 #[derive(Debug)]
-pub struct BTreePageHeader {
-    pub inner: BTreePageHeaderInner<BTreePageType>,
-    pub right_most_pointer: Option<u32>,
+struct BTreePageHeader {
+    inner: BTreePageHeaderInner<BTreePageType>,
+    right_most_pointer: Option<u32>,
 }
 fn read_page_header<R: io::Read>(r: &mut R) -> io::Result<BTreePageHeader> {
     let inner = read_page_header_inner(r)?;
@@ -161,8 +161,8 @@ fn size_of_cell_pointer_array(BTreeCellPointerArray(xs): &BTreeCellPointerArray)
     xs.len() * core::mem::size_of::<BTreeCellPointer>()
 }
 #[derive(Debug)]
-pub struct BTreePageInner {
-    pub header: BTreePageHeader,
+struct BTreePageInner {
+    header: BTreePageHeader,
     pub cell_pointers: BTreeCellPointerArray,
     #[allow(dead_code)]
     pub reserved_area: Vec<u8>,
@@ -190,8 +190,8 @@ fn read_page_inner<R: io::Read>(r: &mut R) -> io::Result<BTreePageInner> {
 #[derive(Debug)]
 pub struct BTreePage {
     #[allow(dead_code)]
-    pub inner: BTreePageInner,
-    pub content: Vec<BTreeCell>,
+    inner: BTreePageInner,
+    content: Vec<BTreeCell>,
 }
 
 pub fn read_page<R: io::Read>(r: &mut R, initial_offset: usize) -> io::Result<BTreePage> {
@@ -248,7 +248,17 @@ pub fn parse_cell<C: FromRawColumn>(cell: BTreeCell) -> io::Result<RecordCell<C>
         }
     }
 }
-
+pub fn read_root(root_page: BTreePage) -> impl Iterator<Item = RecordCell<SchemaColumn>> {
+    root_page
+        .content
+        .into_iter()
+        .map_while(|cell| parse_cell::<SchemaColumn>(cell).ok())
+}
+pub fn read_tail(
+    tail: impl IntoIterator<Item = BTreePage>,
+) -> impl Iterator<Item = Vec<BTreeCell>> {
+    tail.into_iter().map(|BTreePage { content, .. }| content)
+}
 #[derive(Debug)]
 pub struct BTreeLeafTableCell {
     #[allow(dead_code)]

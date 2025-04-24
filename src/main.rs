@@ -19,6 +19,7 @@ pub const COMMANDS: [Command<'_>; COMMAND_COUNT] = [Command { name: "dbinfo" }];
 
 mod database;
 mod io;
+mod sql;
 mod varint;
 
 pub use varint::Varint;
