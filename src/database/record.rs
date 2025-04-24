@@ -172,10 +172,13 @@ pub struct RecordBytes<'a> {
 }
 impl RecordBytes<'_> {
     pub fn from_bytes(mut bytes: &[u8]) -> Option<RecordBytes<'_>> {
-        read_header(&mut bytes)
-            .map(|header| RecordBytes { header, bytes })
-            .inspect_err(|e| eprintln!("FAILED TO READ HEADER FROM BYTES: {e}"))
-            .ok()
+        match read_header(&mut bytes).map(|header| RecordBytes { header, bytes }) {
+            Ok(val) => Some(val),
+            Err(e) => {
+                eprintln!("FAILED TO READ HEADER FROM BYTES: {e}");
+                None
+            }
+        }
     }
 }
 #[derive(Debug)]

@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::database::record::{self, FromRawColumn, RawColumn, RecordHeader};
 use crate::io;
 use crate::sql;
