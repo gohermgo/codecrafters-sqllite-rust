@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::io;
+#[derive(Debug)]
 pub enum Sql {
     Selection(Select),
     Creation(CreateTable),

@@ -70,6 +70,7 @@ fn tables_command(database_path: impl AsRef<Path>) -> io::Result<()> {
 }
 fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) -> io::Result<()> {
     // TODO: Proper query parsing
+    let q = sql::parse(query.as_ref().bytes());
     let split_query = query.as_ref().split_whitespace();
     eprintln!("SPLIT={split_query:?}");
     let table_name = split_query.last().expect("Empty SQL query!");
@@ -92,6 +93,7 @@ fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) ->
             }
         }
     }
+    eprintln!("QUERY={q:?}");
     Ok(())
 }
 struct SqliteArgs {
