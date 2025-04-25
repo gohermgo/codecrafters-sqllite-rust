@@ -5,7 +5,7 @@ mod btree;
 mod record;
 pub use btree::get_cell_content;
 mod page;
-pub use page::{PageCells, Pages};
+pub use page::PageCells;
 
 use crate::io;
 
@@ -127,7 +127,31 @@ pub struct Database {
     pub schema_cells: Vec<record::SchemaRecord>,
     pub record_cells: Vec<Vec<record::SerializedRecord>>,
 }
-fn pages_to_database(pages: Pages<btree::BTreePage>) -> Database {
+// fn pages_to_database(pages: Pages<btree::BTreePage>) -> Database {
+//     fn serialize_row(row: Vec<btree::BTreeCell>) -> Vec<record::SerializedRecord> {
+//         row.iter()
+//             .filter_map(get_cell_content)
+//             .inspect(|bytes| eprintln!("BYTES={bytes:X?}"))
+//             .filter_map(record::RecordBytes::from_bytes)
+//             .inspect(|b @ record::RecordBytes { bytes, .. }| {
+//                 eprintln!("RECORD_BYTES={b:X?}");
+//                 eprintln!("RECORD_STRING={:?}", String::from_utf8_lossy(bytes))
+//             })
+//             .map(record::SerializedRecord::from_bytes)
+//             .collect()
+//     }
+//     let PageCells {
+//         database_header,
+//         schema_cells,
+//         btree_cells,
+//     } = page::cells(pages);
+//     Database {
+//         header: database_header,
+//         schema_cells,
+//         record_cells: btree_cells.into_iter().map(serialize_row).collect(),
+//     }
+// }
+pub fn open(database_path: impl AsRef<Path>) -> io::Result<Database> {
     fn serialize_row(row: Vec<btree::BTreeCell>) -> Vec<record::SerializedRecord> {
         row.iter()
             .filter_map(get_cell_content)
@@ -140,19 +164,17 @@ fn pages_to_database(pages: Pages<btree::BTreePage>) -> Database {
             .map(record::SerializedRecord::from_bytes)
             .collect()
     }
-    let PageCells {
-        database_header,
-        schema_cells,
-        btree_cells,
-    } = page::cells(pages);
-    Database {
-        header: database_header,
-        schema_cells,
-        record_cells: btree_cells.into_iter().map(serialize_row).collect(),
-    }
-}
-pub fn open(database_path: impl AsRef<Path>) -> io::Result<Database> {
     fs::File::open(database_path)
-        .and_then(|mut file| page::read(&mut file))
-        .map(pages_to_database)
+        .and_then(|mut file| page::read_cells(&mut file))
+        .map(
+            |PageCells {
+                 database_header: header,
+                 schema_cells,
+                 btree_cells,
+             }| Database {
+                header,
+                schema_cells,
+                record_cells: btree_cells.into_iter().map(serialize_row).collect(),
+            },
+        )
 }
