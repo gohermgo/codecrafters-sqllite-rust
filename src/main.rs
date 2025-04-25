@@ -82,6 +82,7 @@ fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) ->
                 let xs: Vec<_> = schema_cells.iter().zip(record_cells).collect();
                 eprintln!("LENGTH={}", xs.len());
                 for (record, data) in xs {
+                    eprintln!("DATA_LENGTH={}", data.len());
                     let table_name = String::from_utf8_lossy(&record.column.name);
                     // if table_name != source {
                     //     continue;
