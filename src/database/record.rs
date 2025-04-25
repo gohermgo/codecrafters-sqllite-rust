@@ -64,7 +64,7 @@ fn serial_type_size(serial_type: &Varint) -> usize {
     eprintln!("SIZE={size} FOR {serial_type:?}");
     size
 }
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum RecordValue {
     Null,
     TwosComplement8(u8),
@@ -79,7 +79,7 @@ fn lift_twos_complement_8(value: RecordValue) -> io::Result<u8> {
         )),
     }
 }
-fn lift_encoded_string(value: RecordValue) -> io::Result<Vec<u8>> {
+pub fn lift_encoded_string(value: RecordValue) -> io::Result<Vec<u8>> {
     match value {
         RecordValue::EncodedString(s) => Ok(s),
         otherwise => Err(io::Error::new(

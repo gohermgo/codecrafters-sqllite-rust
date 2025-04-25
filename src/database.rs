@@ -2,8 +2,10 @@ use core::ffi::c_char;
 use std::{fs, path::Path};
 
 mod btree;
-mod record;
 pub use btree::get_cell_content;
+
+mod record;
+pub use record::lift_encoded_string;
 mod page;
 pub use page::PageCells;
 
