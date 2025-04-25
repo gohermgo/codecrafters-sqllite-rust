@@ -89,6 +89,7 @@ fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) ->
                             eprintln!(
                                 "found data type {x} at index {term_idx} for signature {query}"
                             );
+                            eprintln!("data={data:?}");
                             let x = data.get(*term_idx);
                             eprintln!("corresponding to {x:?}");
                         }
