@@ -83,13 +83,9 @@ fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) ->
                 eprintln!("LENGTH={}", xs.len());
                 for (schema, data) in xs {
                     eprintln!("DATA_LENGTH={}", data.len());
-                    for record in data {
-                        let table_name = String::from_utf8_lossy(&schema.column.name);
-                        // if table_name != source {
-                        //     continue;
-                        // }
-                        match schema.column.sql.signature.get(&query) {
-                            Some((term_idx, x)) => {
+                    match schema.column.sql.signature.get(&query) {
+                        Some((term_idx, x)) => {
+                            for record in data.as_slice() {
                                 eprintln!(
                                     "found data type {x} at index {term_idx} for signature {query}"
                                 );
@@ -105,27 +101,14 @@ fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) ->
                                 let query_result = String::from_utf8_lossy(&value);
                                 println!("{query_result}");
                             }
-                            None => eprintln!("table {table_name} missing signature {query}"),
                         }
+                        None => eprintln!("source {source} missing signature {query}"),
                     }
                 }
-                // let current_table_name = eprintln!("QUERY={query};SOURCE={source}");
             }
             sql::Sql::CreateTable(_) => todo!("creating tables is not yet supported"),
         }
-        // let cells = database::page::cells(&pages);
-        // for (record, page) in schema_cells.iter().zip(record_cells) {
-        //     eprintln!("RECORD={record:?}");
-        //     let name = String::from_utf8_lossy(&record.column.name);
-        //     // if name == table_name {
-        //     //     eprintln!("FOUND MATCH FOR TABLE {table_name}");
-        //     //     println!("{}", page.len());
-        //     //     eprintln!("{:?}", page);
-        //     //     eprintln!("PAGE={page:?}");
-        //     // }
-        // }
     }
-    // eprintln!("QUERY={q:?}");
     Ok(())
 }
 struct SqliteArgs {

@@ -30,6 +30,7 @@ pub fn select(s: impl AsRef<str>) -> io::Result<SqlSelect> {
             io::ErrorKind::InvalidData,
             "Failed to strip select prefix from select query",
         ))?;
+    eprintln!("PARSING SELECT: {remainder}");
     let (query, source) = remainder.split_once("from").ok_or(io::Error::new(
         io::ErrorKind::InvalidData,
         "Failed to find keyword from in select query",
