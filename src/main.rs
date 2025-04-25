@@ -90,7 +90,7 @@ fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) ->
                                 "found data type {x} at index {term_idx} for signature {query}"
                             );
                             eprintln!("data={data:?}");
-                            let x = data.get(*term_idx);
+                            let x = data[0].column.cells.get(*term_idx);
                             eprintln!("corresponding to {x:?}");
                         }
                         None => eprintln!("table {table_name} missing signature {query}"),
