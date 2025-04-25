@@ -79,7 +79,9 @@ fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) ->
     {
         match query {
             sql::Sql::Select(sql::SqlSelect { query, source }) => {
-                for (record, data) in schema_cells.iter().zip(record_cells) {
+                let xs: Vec<_> = schema_cells.iter().zip(record_cells).collect();
+                eprintln!("LENGTH={}", xs.len());
+                for (record, data) in xs {
                     let table_name = String::from_utf8_lossy(&record.column.name);
                     // if table_name != source {
                     //     continue;
