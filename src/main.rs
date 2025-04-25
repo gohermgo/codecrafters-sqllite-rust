@@ -102,9 +102,8 @@ fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) ->
                                     eprintln!("could not lift encoded string");
                                     continue;
                                 };
-                                let x = String::from_utf8_lossy(&value);
-                                // let x = data[0].column.cells.get(*term_idx);
-                                eprintln!("corresponding to {x:?}");
+                                let query_result = String::from_utf8_lossy(&value);
+                                println!("{query_result}");
                             }
                             None => eprintln!("table {table_name} missing signature {query}"),
                         }
