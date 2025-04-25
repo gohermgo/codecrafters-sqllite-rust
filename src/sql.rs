@@ -3,26 +3,26 @@ use std::collections::HashMap;
 use crate::io;
 #[derive(Debug)]
 pub enum Sql {
-    Selection(Select),
-    Creation(CreateTable),
+    Select(SqlSelect),
+    CreateTable(SqlCreateTable),
 }
 pub fn parse(data: impl IntoIterator<Item = u8>) -> io::Result<Sql> {
     let v: Vec<u8> = data.into_iter().collect();
 
     match String::from_utf8(v).map(|s| s.to_lowercase()) {
-        Ok(s) if s.starts_with("select") => select(s).map(Sql::Selection),
-        Ok(s) if s.starts_with("create table") => create_table(s).map(Sql::Creation),
+        Ok(s) if s.starts_with("select") => select(s).map(Sql::Select),
+        Ok(s) if s.starts_with("create table") => create_table(s).map(Sql::CreateTable),
         Ok(s) => Err(io::Error::new(std::io::ErrorKind::Unsupported, format!("Unsupported SQL: {s}"))),
         Err(e) => Err(io::Error::new(io::ErrorKind::InvalidInput, e))
 
     }
 }
 #[derive(Debug)]
-pub struct Select {
+pub struct SqlSelect {
     pub query: String,
     pub source: String,
 }
-pub fn select(s: impl AsRef<str>) -> io::Result<Select> {
+pub fn select(s: impl AsRef<str>) -> io::Result<SqlSelect> {
     let remainder = s.as_ref()
         .strip_prefix("select")
         .map(str::trim)
@@ -34,30 +34,30 @@ pub fn select(s: impl AsRef<str>) -> io::Result<Select> {
         io::ErrorKind::InvalidData,
         "Failed to find keyword from in select query",
     ))?;
-    Ok(Select {
+    Ok(SqlSelect {
         query: query.trim().to_string(),
         source: source.trim().to_string(),
     })
 }
 #[allow(dead_code)]
-unsafe fn unwrap_select(sql: Sql) -> Select {
+unsafe fn unwrap_select(sql: Sql) -> SqlSelect {
     match sql {
-        Sql::Selection(elt) => elt,
+        Sql::Select(elt) => elt,
         _ => panic!("unwrapped select"),
     }
 }
-pub fn lift_select(sql: Sql) -> Option<Select> {
+pub fn lift_select(sql: Sql) -> Option<SqlSelect> {
     match sql {
-        Sql::Selection(elt) => Some(elt),
+        Sql::Select(elt) => Some(elt),
         _ => None
     }
 }
 #[derive(Debug)]
-pub struct CreateTable {
+pub struct SqlCreateTable {
     pub name: String,
     pub signature: HashMap<String, String>,
 }
-fn create_table(s: impl AsRef<str>) -> io::Result<CreateTable> {
+fn create_table(s: impl AsRef<str>) -> io::Result<SqlCreateTable> {
     let remainder = s.as_ref()
         .strip_prefix("create table")
         .map(str::trim)
@@ -77,18 +77,18 @@ fn create_table(s: impl AsRef<str>) -> io::Result<CreateTable> {
             .map(|(fst, snd)| (fst.to_string(), snd.to_string()))
     });
     let signature = HashMap::from_iter(signature_pieces);
-    Ok(CreateTable { name, signature })
+    Ok(SqlCreateTable { name, signature })
 }
 #[allow(dead_code)]
-unsafe fn unwrap_create_table(sql: Sql) -> CreateTable {
+unsafe fn unwrap_create_table(sql: Sql) -> SqlCreateTable {
     match sql {
-        Sql::Creation(elt) => elt,
+        Sql::CreateTable(elt) => elt,
         _ => panic!("unwrapped create table")
     }
 }
-pub fn lift_create_table(sql: Sql) -> Option<CreateTable> {
+pub fn lift_create_table(sql: Sql) -> Option<SqlCreateTable> {
     match sql {
-        Sql::Creation(elt) => Some(elt),
+        Sql::CreateTable(elt) => Some(elt),
         _ => None
     }
 }
@@ -106,12 +106,12 @@ b"CREATE TABLE tablename (id integer primary key, butterscotch text,strawberry t
     #[test]
     fn create_table_name_matches() {
         let table = parse(CREATE_TABLE.iter().copied()).map(|elt| unsafe {unwrap_create_table(elt)});
-        assert!(table.is_ok_and(|CreateTable { name, .. }| name == "tablename"))
+        assert!(table.is_ok_and(|SqlCreateTable { name, .. }| name == "tablename"))
     }
     #[test]
     fn create_table_signature_matches() {
         let table = parse(CREATE_TABLE.iter().copied()).map(|elt| unsafe {unwrap_create_table(elt)});
-        assert!(table.is_ok_and(|CreateTable {signature, ..}|
+        assert!(table.is_ok_and(|SqlCreateTable {signature, ..}|
             signature.get("id").is_some_and(|id| id == "integer primary key")
             &&
             signature.get("butterscotch").is_some_and(|elt| elt == "text")
@@ -135,11 +135,11 @@ b"CREATE TABLE tablename (id integer primary key, butterscotch text,strawberry t
     #[test]
     fn select_query_matches() {
         let select = parse(SELECT.iter().copied()).map(|elt| unsafe {unwrap_select(elt)});
-        assert!(select.is_ok_and(|Select {query, ..}| query == "butterscotch"))        
+        assert!(select.is_ok_and(|SqlSelect {query, ..}| query == "butterscotch"))        
     }
     #[test]
     fn select_source_matches() {
         let select = parse(SELECT.iter().copied()).map(|elt| unsafe {unwrap_select(elt)});
-        assert!(select.is_ok_and(|Select {source, ..}| source == "pistachio"))        
+        assert!(select.is_ok_and(|SqlSelect {source, ..}| source == "pistachio"))        
     }
 }

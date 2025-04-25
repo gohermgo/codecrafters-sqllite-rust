@@ -8,7 +8,7 @@ pub struct SchemaColumn {
     pub name: Vec<u8>,
     pub table_name: Vec<u8>,
     pub rootpage: u8,
-    pub sql: sql::CreateTable,
+    pub sql: sql::SqlCreateTable,
 }
 impl FromRawColumn for SchemaColumn {
     fn from_raw_column(column: RawColumn) -> io::Result<Self>

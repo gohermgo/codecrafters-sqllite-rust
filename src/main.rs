@@ -70,30 +70,42 @@ fn tables_command(database_path: impl AsRef<Path>) -> io::Result<()> {
 }
 fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) -> io::Result<()> {
     // TODO: Proper query parsing
-    let q = sql::parse(query.as_ref().bytes());
-    let split_query = query.as_ref().split_whitespace();
-    eprintln!("SPLIT={split_query:?}");
-    let table_name = split_query.last().expect("Empty SQL query!");
-    eprintln!("INPUT TABLE_NAME={table_name}");
+    let query = sql::parse(query.as_ref().bytes())?;
     if let Ok(database::Database {
         schema_cells,
         record_cells,
         ..
     }) = database::open(database_path)
     {
-        // let cells = database::page::cells(&pages);
-        for (record, page) in schema_cells.iter().zip(record_cells) {
-            eprintln!("RECORD={record:?}");
-            let name = String::from_utf8_lossy(&record.column.name);
-            if name == table_name {
-                eprintln!("FOUND MATCH FOR TABLE {table_name}");
-                println!("{}", page.len());
-                eprintln!("{:?}", page);
-                eprintln!("PAGE={page:?}");
+        match query {
+            sql::Sql::Select(sql::SqlSelect { query, source }) => {
+                for (record, _) in schema_cells.iter().zip(record_cells) {
+                    let table_name = String::from_utf8_lossy(&record.column.name);
+                    if table_name != source {
+                        continue;
+                    }
+                    match record.column.sql.signature.get(&query) {
+                        Some(x) => eprintln!("found data {x} for signature {query}"),
+                        None => eprintln!("table {table_name} missing signature {query}"),
+                    }
+                }
+                // let current_table_name = eprintln!("QUERY={query};SOURCE={source}");
             }
+            sql::Sql::CreateTable(_) => todo!("creating tables is not yet supported"),
         }
+        // let cells = database::page::cells(&pages);
+        // for (record, page) in schema_cells.iter().zip(record_cells) {
+        //     eprintln!("RECORD={record:?}");
+        //     let name = String::from_utf8_lossy(&record.column.name);
+        //     // if name == table_name {
+        //     //     eprintln!("FOUND MATCH FOR TABLE {table_name}");
+        //     //     println!("{}", page.len());
+        //     //     eprintln!("{:?}", page);
+        //     //     eprintln!("PAGE={page:?}");
+        //     // }
+        // }
     }
-    eprintln!("QUERY={q:?}");
+    // eprintln!("QUERY={q:?}");
     Ok(())
 }
 struct SqliteArgs {
