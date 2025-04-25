@@ -79,15 +79,19 @@ fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) ->
     {
         match query {
             sql::Sql::Select(sql::SqlSelect { query, source }) => {
-                for (record, _) in schema_cells.iter().zip(record_cells) {
+                for (record, data) in schema_cells.iter().zip(record_cells) {
                     let table_name = String::from_utf8_lossy(&record.column.name);
                     if table_name != source {
                         continue;
                     }
                     match record.column.sql.signature.get(&query) {
-                        Some((term_idx, x)) => eprintln!(
-                            "found data type {x} at index {term_idx} for signature {query}"
-                        ),
+                        Some((term_idx, x)) => {
+                            eprintln!(
+                                "found data type {x} at index {term_idx} for signature {query}"
+                            );
+                            let x = data.get(*term_idx);
+                            eprintln!("corresponding to {x:?}");
+                        }
                         None => eprintln!("table {table_name} missing signature {query}"),
                     }
                 }
