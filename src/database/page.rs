@@ -55,6 +55,7 @@ pub struct PageCells {
     pub btree_cells: Vec<Vec<btree::BTreeCell>>,
 }
 pub fn read_cells<R: io::Read>(r: &mut R) -> io::Result<PageCells> {
+    eprintln!("READING CELLS");
     read_root_page(r)
         .map(|root_page| {
             let page_size = root_page.database_header.page_size as usize;

@@ -154,6 +154,7 @@ pub struct Database {
 //     }
 // }
 pub fn open(database_path: impl AsRef<Path>) -> io::Result<Database> {
+    eprintln!("OPENING DATABASE");
     fn serialize_row(row: Vec<btree::BTreeCell>) -> Vec<record::SerializedRecord> {
         row.iter()
             .filter_map(get_cell_content)
