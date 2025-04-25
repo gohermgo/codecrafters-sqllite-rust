@@ -81,31 +81,33 @@ fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) ->
             sql::Sql::Select(sql::SqlSelect { query, source }) => {
                 let xs: Vec<_> = schema_cells.iter().zip(record_cells).collect();
                 eprintln!("LENGTH={}", xs.len());
-                for (record, data) in xs {
+                for (schema, data) in xs {
                     eprintln!("DATA_LENGTH={}", data.len());
-                    let table_name = String::from_utf8_lossy(&record.column.name);
-                    // if table_name != source {
-                    //     continue;
-                    // }
-                    match record.column.sql.signature.get(&query) {
-                        Some((term_idx, x)) => {
-                            eprintln!(
-                                "found data type {x} at index {term_idx} for signature {query}"
-                            );
-                            eprintln!("data={data:?}");
-                            let Some(value) = data[0].column.cells.get(*term_idx).cloned() else {
-                                eprintln!("No term at {term_idx}");
-                                continue;
-                            };
-                            let Ok(value) = database::lift_encoded_string(value) else {
-                                eprintln!("could not lift encoded string");
-                                continue;
-                            };
-                            let x = String::from_utf8_lossy(&value);
-                            // let x = data[0].column.cells.get(*term_idx);
-                            eprintln!("corresponding to {x:?}");
+                    for record in data {
+                        let table_name = String::from_utf8_lossy(&schema.column.name);
+                        // if table_name != source {
+                        //     continue;
+                        // }
+                        match schema.column.sql.signature.get(&query) {
+                            Some((term_idx, x)) => {
+                                eprintln!(
+                                    "found data type {x} at index {term_idx} for signature {query}"
+                                );
+                                let Some(value) = record.column.cells.get(*term_idx).cloned()
+                                else {
+                                    eprintln!("No term at {term_idx}");
+                                    continue;
+                                };
+                                let Ok(value) = database::lift_encoded_string(value) else {
+                                    eprintln!("could not lift encoded string");
+                                    continue;
+                                };
+                                let x = String::from_utf8_lossy(&value);
+                                // let x = data[0].column.cells.get(*term_idx);
+                                eprintln!("corresponding to {x:?}");
+                            }
+                            None => eprintln!("table {table_name} missing signature {query}"),
                         }
-                        None => eprintln!("table {table_name} missing signature {query}"),
                     }
                 }
                 // let current_table_name = eprintln!("QUERY={query};SOURCE={source}");
