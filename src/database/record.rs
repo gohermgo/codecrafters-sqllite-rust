@@ -34,7 +34,6 @@ fn read_raw<R: io::Read>(r: &mut R) -> io::Result<RawRecord> {
     let header = read_header(r)?;
     let mut data = vec![];
     io::Read::read_to_end(r, &mut data)?;
-    eprintln!("RECORD_DATA={}", String::from_utf8_lossy(&data));
     Ok(RawRecord { header, data })
 }
 // #[derive(Debug)]
@@ -50,7 +49,7 @@ pub fn string_serial_type_size(serial_type_value: u64) -> usize {
 fn serial_type_size(serial_type: &Varint) -> usize {
     const NULL_SERIAL_TYPE: u64 = 0;
     const EIGHT_BIT_SERIAL_TYPE: u64 = 1;
-    let size = match varint::value_of(serial_type) {
+    match varint::value_of(serial_type) {
         // Value is a null
         NULL_SERIAL_TYPE => 0,
         // Value is an 8-bit twos-complement integer
@@ -60,9 +59,7 @@ fn serial_type_size(serial_type: &Varint) -> usize {
             string_serial_type_size(serial_type_value)
         }
         _ => todo!(),
-    };
-    eprintln!("SIZE={size} FOR {serial_type:?}");
-    size
+    }
 }
 #[derive(Clone, Debug)]
 pub enum RecordValue {
@@ -95,27 +92,12 @@ pub fn read_value<R: io::Read>(r: &mut R, serial_type: &Varint) -> io::Result<Re
         NULL_SERIAL_TYPE => Ok(RecordValue::Null),
         EIGHT_BIT_SERIAL_TYPE => io::read_one(r).map(RecordValue::TwosComplement8),
         serial_type_value if is_string_serial_type(serial_type_value) => {
-            io::read_exact_vec(r, string_serial_type_size(serial_type_value)).map(|s| {
-                eprintln!("READ STR={}", String::from_utf8_lossy(&s));
-                RecordValue::EncodedString(s)
-            })
+            io::read_exact_vec(r, string_serial_type_size(serial_type_value))
+                .map(RecordValue::EncodedString)
         }
         _ => todo!(),
     }
 }
-// #[derive(Debug)]
-// pub struct RecordRow {
-//     pub xs: Vec<RecordValue>,
-// }
-// pub fn read_element<R: io::Read>(r: &mut R, serial_type: &Varint) -> io::Result<RecordElement> {
-//     let size = serial_type_size(serial_type);
-//     if size > 0 {
-//         io::read_exact_vec(r, size)
-//     } else {
-//         Ok(vec![])
-//     }
-//     .map(RecordElement)
-// }
 #[derive(Debug)]
 pub struct RawColumn {
     pub cells: Vec<RecordValue>,

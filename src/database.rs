@@ -158,12 +158,12 @@ pub fn open(database_path: impl AsRef<Path>) -> io::Result<Database> {
     fn serialize_row(row: Vec<btree::BTreeCell>) -> Vec<record::SerializedRecord> {
         row.iter()
             .filter_map(get_cell_content)
-            .inspect(|bytes| eprintln!("BYTES={bytes:X?}"))
+            // .inspect(|bytes| eprintln!("BYTES={bytes:X?}"))
             .filter_map(record::RecordBytes::from_bytes)
-            .inspect(|b @ record::RecordBytes { bytes, .. }| {
-                eprintln!("RECORD_BYTES={b:X?}");
-                eprintln!("RECORD_STRING={:?}", String::from_utf8_lossy(bytes))
-            })
+            // .inspect(|b @ record::RecordBytes { bytes, .. }| {
+            //     eprintln!("RECORD_BYTES={b:X?}");
+            //     eprintln!("RECORD_STRING={:?}", String::from_utf8_lossy(bytes))
+            // })
             .map(record::SerializedRecord::from_bytes)
             .collect()
     }
