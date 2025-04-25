@@ -55,7 +55,7 @@ pub fn lift_select(sql: Sql) -> Option<SqlSelect> {
 #[derive(Debug)]
 pub struct SqlCreateTable {
     pub name: String,
-    pub signature: HashMap<String, String>,
+    pub signature: HashMap<String, (usize, String)>,
 }
 fn create_table(s: impl AsRef<str>) -> io::Result<SqlCreateTable> {
     let remainder = s.as_ref()
@@ -72,9 +72,9 @@ fn create_table(s: impl AsRef<str>) -> io::Result<SqlCreateTable> {
     let name = name.to_string();
     let signature_str = signature_str.trim_start_matches('(').trim_end_matches(')');
     let signature_pieces = signature_str.split(',').map(str::trim);
-    let signature_pieces = signature_pieces.map_while(|elt| {
+    let signature_pieces = signature_pieces.enumerate().map_while(|(term_idx, elt)| {
         elt.split_once(' ')
-            .map(|(fst, snd)| (fst.to_string(), snd.to_string()))
+            .map(|(fst, snd)| (fst.to_string(), ( term_idx, snd.to_string())))
     });
     let signature = HashMap::from_iter(signature_pieces);
     Ok(SqlCreateTable { name, signature })
@@ -112,17 +112,17 @@ b"CREATE TABLE tablename (id integer primary key, butterscotch text,strawberry t
     fn create_table_signature_matches() {
         let table = parse(CREATE_TABLE.iter().copied()).map(|elt| unsafe {unwrap_create_table(elt)});
         assert!(table.is_ok_and(|SqlCreateTable {signature, ..}|
-            signature.get("id").is_some_and(|id| id == "integer primary key")
+            signature.get("id").is_some_and(|(_, id)| id == "integer primary key")
             &&
-            signature.get("butterscotch").is_some_and(|elt| elt == "text")
+            signature.get("butterscotch").is_some_and(|(_, elt)| elt == "text")
             &&
-            signature.get("strawberry").is_some_and(|elt| elt == "text")
+            signature.get("strawberry").is_some_and(|(_, elt)| elt == "text")
             &&
-            signature.get("chocolate").is_some_and(|elt| elt == "text")
+            signature.get("chocolate").is_some_and(|(_, elt)| elt == "text")
             &&
-            signature.get("pistachio").is_some_and(|elt| elt == "text")
+            signature.get("pistachio").is_some_and(|(_,elt)| elt == "text")
             &&
-            signature.get("coffee").is_some_and(|elt| elt == "text")
+            signature.get("coffee").is_some_and(|(_,elt)| elt == "text")
         ))
         
     }

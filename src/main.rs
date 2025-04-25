@@ -85,7 +85,9 @@ fn sql_query_command(database_path: impl AsRef<Path>, query: impl AsRef<str>) ->
                         continue;
                     }
                     match record.column.sql.signature.get(&query) {
-                        Some(x) => eprintln!("found data {x} for signature {query}"),
+                        Some((term_idx, x)) => eprintln!(
+                            "found data type {x} at index {term_idx} for signature {query}"
+                        ),
                         None => eprintln!("table {table_name} missing signature {query}"),
                     }
                 }
